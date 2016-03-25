@@ -1,31 +1,54 @@
 package com.amitai.medcart.medcartclient;
 
+import android.app.AlertDialog;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.nfc.NfcAdapter;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
-import android.support.v4.view.MenuItemCompat;
-import android.support.v7.widget.SwitchCompat;
-import android.view.View;
 import android.support.design.widget.NavigationView;
+import android.support.design.widget.Snackbar;
 import android.support.v4.view.GravityCompat;
+import android.support.v4.view.MenuItemCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.widget.Button;
+import android.view.View;
 import android.widget.CompoundButton;
-import android.widget.RelativeLayout;
+import android.widget.ListView;
+import android.widget.SimpleAdapter;
 import android.widget.Switch;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
 
-    private TextView mainText;
-    private Switch toolbarSwitch;
+    private static final DateFormat TIME_FORMAT = SimpleDateFormat.getDateTimeInstance();
     View viewSwitchLayout;
+    //ListView explanation: http://stackoverflow.com/a/7917516/4038549
+    //LIST OF ARRAY STRINGS WHICH WILL SERVE AS LIST ITEMS.
+    List<Map<String, String>> listData;
+    //DEFINING A STRING ADAPTER WHICH WILL HANDLE THE DATA OF THE LISTVIEW.
+    SimpleAdapter adapter;
+    private TextView mainText;
+
+    //TODO: remove if not needed. If using nfc foreground detection or opening already running activities and adding the nfc intent to a list, than use this:
+//    private PendingIntent mPendingIntent;
+    private Switch toolbarSwitch;
+    private NfcAdapter mAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,14 +77,46 @@ public class MainActivity extends AppCompatActivity
 
         NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
-
+        navigationView.getMenu().getItem(0).setChecked(true);
 
         components();
 
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        Intent intent = getIntent();
+
+        //TODO: remove if not needed. If using nfc foreground detection or opening already running activities and adding the nfc intent to a list, than use this:
+//        if (mAdapter != null && mAdapter.isEnabled()) {
+//            mAdapter.enableForegroundDispatch(this, mPendingIntent, null, null);
+//        }
+
+
+//        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        showTagUID(intent);
+
+    }
+
+    /**
+     * Initializing other views and components. this method is usually called by the OnCreate method.
+     */
     private void components() {
+
+        //TODO: remove if not needed. If using nfc foreground detection or opening already running activities and adding the nfc intent to a list, than use this:
+//        mPendingIntent = PendingIntent.getActivity(this, 0,
+//                new Intent(this, getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), 0);
+
         mainText = (TextView) findViewById(R.id.mainTextView);
+        ListView myList = (ListView) findViewById(R.id.mainListView);
+        listData = new ArrayList<Map<String, String>>();
+        adapter = new SimpleAdapter(this, listData,
+                R.layout.simple_list_item_2,
+                new String[]{"title", "date"},
+                new int[]{R.id.listText1,
+                        R.id.listText2});
+        myList.setAdapter(adapter);
     }
 
     @Override
@@ -78,19 +133,28 @@ public class MainActivity extends AppCompatActivity
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.main, menu);
-        //TODO Check if able to switch between *SwitchCompat* and *Switch*.
 
-        MenuItem menuItem = menu.findItem(R.id.toolbarSwitch);
-        viewSwitchLayout = MenuItemCompat.getActionView(menuItem);
+        MenuItem menuSwitchItem = menu.findItem(R.id.toolbarSwitch);
+        viewSwitchLayout = MenuItemCompat.getActionView(menuSwitchItem);
         toolbarSwitch = (Switch) viewSwitchLayout.findViewById(R.id.switchForActionBar);
         toolbarSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                mainText.setText(String.valueOf(isChecked));
+                if (isChecked) {
+                    NfcAdapter nfcAdapter = NfcAdapter.getDefaultAdapter(MainActivity.this);
+                    if (nfcAdapter == null) {
+                        Toast.makeText(MainActivity.this, R.string.no_nfc, Toast.LENGTH_LONG).show();
+                        toolbarSwitch.setChecked(false);
+                    } else if (!nfcAdapter.isEnabled()) {
+                        showWirelessSettingsDialog();
+                    } else {
+                        Toast.makeText(MainActivity.this, "NFC available", Toast.LENGTH_LONG).show();
+                    }
+                }
             }
         });
 
-        return true;
+        return true;        //Indicating that we want to display this menu item now.
     }
 
     @Override
@@ -102,7 +166,6 @@ public class MainActivity extends AppCompatActivity
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.toolbarSwitch) {
-            mainText.setText("");
             return true;
         }
 
@@ -115,8 +178,9 @@ public class MainActivity extends AppCompatActivity
         // Handle navigation view item clicks here.
         int id = item.getItemId();
 
-        if (id == R.id.nav_sign_in_eiris) {
-            // Handle the sign in action
+        if (id == R.id.nav_unlock) {
+
+        } else if (id == R.id.nav_sign_in_eiris) {
 
         } else if (id == R.id.nav_settings) {
 
@@ -129,5 +193,75 @@ public class MainActivity extends AppCompatActivity
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         drawer.closeDrawer(GravityCompat.START);
         return true;
+    }
+
+    /**
+     * Converts between byte array and hexadecimal.
+     *
+     * @param inarray array of bytes.
+     * @return String that contains a hexadecimal address.
+     */
+    private String ByteArrayToHexString(byte[] inarray) {
+        int i, j, in;
+        String[] hex = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F"};
+        String out = "";
+
+        for (j = 0; j < inarray.length; ++j) {
+            in = (int) inarray[j] & 0xff;
+            i = (in >> 4) & 0x0f;
+            out += hex[i];
+            i = in & 0x0f;
+            out += hex[i];
+        }
+        return out;
+    }
+
+    /**
+     * Adds to the ListView the nfc UID of passed intent.
+     *
+     * @param intent intent of the current scanned nfc tag.
+     */
+    private void showTagUID(Intent intent) {
+        if (NfcAdapter.ACTION_TECH_DISCOVERED.equals(intent.getAction())) {
+            byte[] rawId = intent.getByteArrayExtra(NfcAdapter.EXTRA_ID);
+            String hexStringID = ByteArrayToHexString(rawId);
+            String hexStringIDfinal = stringUIDDisplayFormat(hexStringID);
+            Map<String, String> datum = new HashMap<String, String>(2);
+            datum.put("title", hexStringIDfinal);
+            datum.put("date", TIME_FORMAT.format(new Date()));
+            listData.add(datum);
+        }
+    }
+
+    /**
+     * @param ID String with numbers only that represent the nfc tag UID.
+     * @return String with the UID in a display format, with dashes between each byte.
+     */
+    private String stringUIDDisplayFormat(String ID) {
+        char[] IDcharArray = ID.toCharArray();
+        String hexStringIDfinal = "" + IDcharArray[0] + IDcharArray[1];
+        for (int i = 2; i < IDcharArray.length; i += 2)
+            hexStringIDfinal += "-" + IDcharArray[i] + IDcharArray[i + 1];
+        return hexStringIDfinal;
+    }
+
+    /**
+     * Opens the Wireless Settings Dialog so that the user could turn on the NFC.
+     */
+    private void showWirelessSettingsDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setMessage(R.string.nfc_disabled);
+        builder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialogInterface, int i) {
+                Intent intent = new Intent(Settings.ACTION_WIRELESS_SETTINGS);
+                startActivity(intent);
+            }
+        });
+        builder.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialogInterface, int i) {
+                toolbarSwitch.setChecked(false);
+            }
+        });
+        builder.create().show();
     }
 }
