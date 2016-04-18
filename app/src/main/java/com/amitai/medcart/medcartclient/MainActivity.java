@@ -1,6 +1,9 @@
 package com.amitai.medcart.medcartclient;
 
 import android.app.AlertDialog;
+import android.app.Fragment;
+import android.app.FragmentManager;
+import android.app.FragmentTransaction;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.nfc.NfcAdapter;
@@ -19,31 +22,23 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.CompoundButton;
-import android.widget.ListView;
-import android.widget.SimpleAdapter;
 import android.widget.Switch;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
 
+
     private static final DateFormat TIME_FORMAT = SimpleDateFormat.getDateTimeInstance();
+    FragmentManager fragmentManager;
+    FragmentTransaction fragmentTransaction;
     View viewSwitchLayout;
-    //ListView explanation: http://stackoverflow.com/a/7917516/4038549
-    //LIST OF ARRAY STRINGS WHICH WILL SERVE AS LIST ITEMS.
-    List<Map<String, String>> listData;
-    //DEFINING A STRING ADAPTER WHICH WILL HANDLE THE DATA OF THE LISTVIEW.
-    SimpleAdapter adapter;
-    private TextView mainText;
 
     //TODO: remove if not needed. If using nfc foreground detection or opening already running activities and adding the nfc intent to a list, than use this:
 //    private PendingIntent mPendingIntent;
@@ -56,6 +51,14 @@ public class MainActivity extends AppCompatActivity
         setContentView(R.layout.mainactivity_layout);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+
+        //Setting up default fragment.
+        fragmentManager = getFragmentManager();
+        fragmentTransaction = fragmentManager.beginTransaction();
+//        UnlockFragment unlockFragment = new UnlockFragment();
+        Fragment unlockFragment = UnlockFragment.newInstance();
+        fragmentTransaction.add(R.id.content_frame, unlockFragment);
+        fragmentTransaction.commit();
 
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
@@ -104,19 +107,6 @@ public class MainActivity extends AppCompatActivity
      */
     private void components() {
 
-        //TODO: remove if not needed. If using nfc foreground detection or opening already running activities and adding the nfc intent to a list, than use this:
-//        mPendingIntent = PendingIntent.getActivity(this, 0,
-//                new Intent(this, getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), 0);
-
-        mainText = (TextView) findViewById(R.id.mainTextView);
-        ListView myList = (ListView) findViewById(R.id.mainListView);
-        listData = new ArrayList<Map<String, String>>();
-        adapter = new SimpleAdapter(this, listData,
-                R.layout.simple_list_item_2,
-                new String[]{"title", "date"},
-                new int[]{R.id.listText1,
-                        R.id.listText2});
-        myList.setAdapter(adapter);
     }
 
     @Override
@@ -179,7 +169,10 @@ public class MainActivity extends AppCompatActivity
         int id = item.getItemId();
 
         if (id == R.id.nav_unlock) {
-
+            fragmentTransaction = fragmentManager.beginTransaction();
+            Fragment unlockFragment = UnlockFragment.newInstance();
+            fragmentTransaction.replace(R.id.content_frame, unlockFragment);
+            fragmentTransaction.commit();
         } else if (id == R.id.nav_sign_in_eiris) {
 
         } else if (id == R.id.nav_settings) {
@@ -229,7 +222,7 @@ public class MainActivity extends AppCompatActivity
             Map<String, String> datum = new HashMap<String, String>(2);
             datum.put("title", hexStringIDfinal);
             datum.put("date", TIME_FORMAT.format(new Date()));
-            listData.add(datum);
+//            listData.add(datum);
         }
     }
 

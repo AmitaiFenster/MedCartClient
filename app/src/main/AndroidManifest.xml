@@ -37,6 +37,7 @@
                 android:resource="@xml/nfc_tech_list" />
 
         </activity>
+
     </application>
 
 </manifest>
