@@ -11,7 +11,6 @@ import android.widget.ListView;
 import android.widget.SimpleAdapter;
 import android.widget.TextView;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -89,7 +88,6 @@ public class UnlockFragment extends Fragment {
 //                new Intent(this, getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), 0);
 //
         mainText = (TextView) rootView.findViewById(R.id.unlockTextView);
-        mainText.setText("amitai");
 //        myList = (ListView) getActivity().findViewById(R.id.unlockListView);
 //        listData = new ArrayList<Map<String, String>>();
 //        adapter = new SimpleAdapter(getActivity(), listData,
@@ -117,12 +115,12 @@ public class UnlockFragment extends Fragment {
         }
     }
 
-    @Override
-    public void onAttach(Context context) {
-        super.onAttach(context);
-    }
+//    @Override
+//    public void onAttach(Context context) {
+//        super.onAttach(context);
+//    }
 
-    /*
+
     @Override
     public void onAttach(Context context) {
         super.onAttach(context);
@@ -133,7 +131,7 @@ public class UnlockFragment extends Fragment {
                     + " must implement OnFragmentInteractionListener");
         }
     }
-    */
+
 
     @Override
     public void onDetach() {

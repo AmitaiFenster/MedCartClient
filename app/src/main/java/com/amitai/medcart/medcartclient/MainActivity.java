@@ -6,6 +6,7 @@ import android.app.FragmentManager;
 import android.app.FragmentTransaction;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.net.Uri;
 import android.nfc.NfcAdapter;
 import android.os.Bundle;
 import android.provider.Settings;
@@ -32,7 +33,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class MainActivity extends AppCompatActivity
-        implements NavigationView.OnNavigationItemSelectedListener {
+        implements NavigationView.OnNavigationItemSelectedListener, UnlockFragment.OnFragmentInteractionListener {
 
 
     private static final DateFormat TIME_FORMAT = SimpleDateFormat.getDateTimeInstance();
@@ -51,14 +52,6 @@ public class MainActivity extends AppCompatActivity
         setContentView(R.layout.mainactivity_layout);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-
-        //Setting up default fragment.
-        fragmentManager = getFragmentManager();
-        fragmentTransaction = fragmentManager.beginTransaction();
-//        UnlockFragment unlockFragment = new UnlockFragment();
-        Fragment unlockFragment = UnlockFragment.newInstance();
-        fragmentTransaction.add(R.id.content_frame, unlockFragment);
-        fragmentTransaction.commit();
 
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
@@ -83,6 +76,13 @@ public class MainActivity extends AppCompatActivity
         navigationView.getMenu().getItem(0).setChecked(true);
 
         components();
+
+        //        //Setting up default fragment.
+        fragmentManager = getFragmentManager();
+        fragmentTransaction = fragmentManager.beginTransaction();
+        Fragment unlockFragment = UnlockFragment.newInstance();
+        fragmentTransaction.add(R.id.content_frame, unlockFragment);
+        fragmentTransaction.commit();
 
     }
 
@@ -256,5 +256,10 @@ public class MainActivity extends AppCompatActivity
             }
         });
         builder.create().show();
+    }
+
+    @Override
+    public void onFragmentInteraction(Uri uri) {
+
     }
 }
