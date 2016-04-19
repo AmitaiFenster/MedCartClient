@@ -28,15 +28,11 @@ import android.widget.Toast;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener, UnlockFragment.OnFragmentInteractionListener {
 
 
-    private static final DateFormat TIME_FORMAT = SimpleDateFormat.getDateTimeInstance();
     FragmentManager fragmentManager;
     FragmentTransaction fragmentTransaction;
     View viewSwitchLayout;
@@ -44,7 +40,6 @@ public class MainActivity extends AppCompatActivity
     //TODO: remove if not needed. If using nfc foreground detection or opening already running activities and adding the nfc intent to a list, than use this:
 //    private PendingIntent mPendingIntent;
     private Switch toolbarSwitch;
-    private NfcAdapter mAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -89,16 +84,14 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onResume() {
         super.onResume();
-        Intent intent = getIntent();
+//        Intent intent = getIntent();
 
         //TODO: remove if not needed. If using nfc foreground detection or opening already running activities and adding the nfc intent to a list, than use this:
 //        if (mAdapter != null && mAdapter.isEnabled()) {
 //            mAdapter.enableForegroundDispatch(this, mPendingIntent, null, null);
 //        }
 
-
 //        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        showTagUID(intent);
 
     }
 
@@ -185,56 +178,6 @@ public class MainActivity extends AppCompatActivity
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         drawer.closeDrawer(GravityCompat.START);
         return true;
-    }
-
-    /**
-     * Converts between byte array and hexadecimal.
-     *
-     * @param inarray array of bytes.
-     * @return String that contains a hexadecimal address.
-     */
-    private String ByteArrayToHexString(byte[] inarray) {
-        int i, j, in;
-        String[] hex = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F"};
-        String out = "";
-
-        for (j = 0; j < inarray.length; ++j) {
-            in = (int) inarray[j] & 0xff;
-            i = (in >> 4) & 0x0f;
-            out += hex[i];
-            i = in & 0x0f;
-            out += hex[i];
-        }
-        return out;
-    }
-
-    /**
-     * Adds to the ListView the nfc UID of passed intent.
-     *
-     * @param intent intent of the current scanned nfc tag.
-     */
-    private void showTagUID(Intent intent) {
-        if (NfcAdapter.ACTION_TECH_DISCOVERED.equals(intent.getAction())) {
-            byte[] rawId = intent.getByteArrayExtra(NfcAdapter.EXTRA_ID);
-            String hexStringID = ByteArrayToHexString(rawId);
-            String hexStringIDfinal = stringUIDDisplayFormat(hexStringID);
-            Map<String, String> datum = new HashMap<String, String>(2);
-            datum.put("title", hexStringIDfinal);
-            datum.put("date", TIME_FORMAT.format(new Date()));
-//            listData.add(datum);
-        }
-    }
-
-    /**
-     * @param ID String with numbers only that represent the nfc tag UID.
-     * @return String with the UID in a display format, with dashes between each byte.
-     */
-    private String stringUIDDisplayFormat(String ID) {
-        char[] IDcharArray = ID.toCharArray();
-        String hexStringIDfinal = "" + IDcharArray[0] + IDcharArray[1];
-        for (int i = 2; i < IDcharArray.length; i += 2)
-            hexStringIDfinal += "-" + IDcharArray[i] + IDcharArray[i + 1];
-        return hexStringIDfinal;
     }
 
     /**
