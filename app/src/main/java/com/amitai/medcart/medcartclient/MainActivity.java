@@ -157,6 +157,8 @@ public class MainActivity extends AppCompatActivity
         //noinspection SimplifiableIfStatement
         if (id == R.id.toolbarSwitch) {
             return true;
+        } else if (id == R.id.action_settings) {
+            return true;
         }
 
         return super.onOptionsItemSelected(item);
@@ -169,10 +171,7 @@ public class MainActivity extends AppCompatActivity
         int id = item.getItemId();
 
         if (id == R.id.nav_unlock) {
-            fragmentTransaction = fragmentManager.beginTransaction();
-            Fragment unlockFragment = UnlockFragment.newInstance();
-            fragmentTransaction.replace(R.id.content_frame, unlockFragment);
-            fragmentTransaction.commit();
+            replaceFragment(UnlockFragment.newInstance());
         } else if (id == R.id.nav_sign_in_eiris) {
 
         } else if (id == R.id.nav_settings) {
@@ -180,7 +179,7 @@ public class MainActivity extends AppCompatActivity
         } else if (id == R.id.nav_test_connection) {
 
         } else if (id == R.id.nav_enroll_cart) {
-
+            replaceFragment(EnrollCartFragment.newInstance());
         }
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
@@ -261,5 +260,11 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void onFragmentInteraction(Uri uri) {
 
+    }
+
+    public void replaceFragment(Fragment newFragment) {
+        fragmentTransaction = fragmentManager.beginTransaction();
+        fragmentTransaction.replace(R.id.content_frame, newFragment);
+        fragmentTransaction.commit();
     }
 }
