@@ -4,6 +4,9 @@ import android.app.AlertDialog;
 import android.app.Fragment;
 import android.app.FragmentManager;
 import android.app.FragmentTransaction;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothManager;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.net.Uri;
@@ -26,9 +29,6 @@ import android.widget.CompoundButton;
 import android.widget.Switch;
 import android.widget.Toast;
 
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener, UnlockFragment.OnFragmentInteractionListener {
 
@@ -36,6 +36,10 @@ public class MainActivity extends AppCompatActivity
     FragmentManager fragmentManager;
     FragmentTransaction fragmentTransaction;
     View viewSwitchLayout;
+
+    private static final int REQUEST_ENABLE_BT = 1;
+
+    private BluetoothAdapter mBluetoothAdapter;
 
     //TODO: remove if not needed. If using nfc foreground detection or opening already running activities and adding the nfc intent to a list, than use this:
 //    private PendingIntent mPendingIntent;
@@ -99,7 +103,15 @@ public class MainActivity extends AppCompatActivity
      * Initializing other views and components. this method is usually called by the OnCreate method.
      */
     private void components() {
+        final BluetoothManager bluetoothManager =
+                (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
+        mBluetoothAdapter = bluetoothManager.getAdapter();
 
+        // Checks if Bluetooth is supported on the device.
+        if (mBluetoothAdapter == null) {
+            Toast.makeText(this, R.string.error_bluetooth_not_supported, Toast.LENGTH_SHORT).show();
+            finish();
+        }
     }
 
     @Override
@@ -133,11 +145,20 @@ public class MainActivity extends AppCompatActivity
                     } else {
                         Toast.makeText(MainActivity.this, "NFC available", Toast.LENGTH_LONG).show();
                     }
+
+                    enableBluetooth();
                 }
             }
         });
 
         return true;        //Indicating that we want to display this menu item now.
+    }
+
+    public void enableBluetooth() {
+        if (mBluetoothAdapter == null || !mBluetoothAdapter.isEnabled()) {
+            Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+            startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+        }
     }
 
     @Override
@@ -165,6 +186,7 @@ public class MainActivity extends AppCompatActivity
 
         if (id == R.id.nav_unlock) {
             replaceFragment(UnlockFragment.newInstance());
+            setTitle(getResources().getString(R.string.app_name2));
         } else if (id == R.id.nav_sign_in_eiris) {
 
         } else if (id == R.id.nav_settings) {
@@ -173,6 +195,7 @@ public class MainActivity extends AppCompatActivity
 
         } else if (id == R.id.nav_enroll_cart) {
             replaceFragment(EnrollCartFragment.newInstance());
+            setTitle("Enroll Cart");
         }
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
@@ -205,6 +228,12 @@ public class MainActivity extends AppCompatActivity
 
     }
 
+    /**
+     * Replacing current fragment with newFragment. Used for example when navigation drawer item
+     * is selected.
+     *
+     * @param newFragment
+     */
     public void replaceFragment(Fragment newFragment) {
         fragmentTransaction = fragmentManager.beginTransaction();
         fragmentTransaction.replace(R.id.content_frame, newFragment);

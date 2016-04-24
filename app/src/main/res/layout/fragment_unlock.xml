@@ -10,10 +10,37 @@
 
     <TextView
         android:id="@+id/unlockTextView"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Unlock Fragment"
         android:textSize="30dp" />
+
+    <TextView
+        android:id="@+id/BLEInfoTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="BLE Info"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:layout_below="@+id/textViewDevAddress"
+        android:layout_alignParentStart="true" />
+
+    <TextView
+        android:id="@+id/textViewDevName"
+        android:text="textViewDevName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="24dp"
+        android:layout_centerVertical="true"
+        android:layout_alignParentStart="true" />
+
+    <TextView
+        android:id="@+id/textViewDevAddress"
+        android:text="textViewDevAddress"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="12dp"
+        android:layout_below="@+id/textViewDevName"
+        android:layout_alignParentStart="true" />
 
     <!--
     <ListView
