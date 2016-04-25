@@ -21,6 +21,7 @@ import java.util.TimerTask;
 
 /**
  * Class for scanning and connecting to a Bluetooth LE device.
+ * Currently Not in use, this work is being done in the unlockService.
  */
 public class BLEScanConnect implements BluetoothAdapter.LeScanCallback {
 
