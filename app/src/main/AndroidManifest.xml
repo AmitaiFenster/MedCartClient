@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.amitai.medcart.medcartclient">
+          package="com.amitai.medcart.medcartclient">
 
     <uses-permission android:name="android.permission.NFC" />
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
 
     <uses-feature
         android:name="android.hardware.bluetooth_le"
@@ -49,7 +51,7 @@
 
         <service
             android:name=".UnlockService"
-            android:exported="false"></service>
+            android:exported="false"/>
     </application>
 
 </manifest>

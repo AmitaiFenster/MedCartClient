@@ -12,6 +12,28 @@
 
     <string name="error_bluetooth_not_supported">Bluetooth not supported.</string>
 
+    <string name="prompt_email">Email</string>
+    <string name="prompt_password">Password</string>
+    <string name="action_sign_in">Login</string>
+    <string name="action_sign_in_with_google">Sign in with Google</string>
+    <string name="invalid_email">This email address is invalid</string>
+    <string name="invalid_password">Password is too short</string>
+    <string name="incorrect_password">Password is incorrect</string>
+    <string name="field_required">This field is required</string>
+
+
+    <string name="login_error">Login Error!</string>
+    <string name="no_passwords">You have no passwords</string>
+    <string name="action_logout">Logout</string>
+    <string name="deleted">Deleted</string>
+    <string name="username">Username</string>
+    <string name="password">Password</string>
+    <string name="showPassword">Show password</string>
+    <string name="edit_password_title">Edit Password</string>
+    <string name="service">Service</string>
+    <string name="add_password_title">Add Password</string>
+
+
     <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
 </resources>

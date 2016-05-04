@@ -1,5 +1,6 @@
 package com.amitai.medcart.medcartclient;
 
+import android.Manifest;
 import android.app.AlertDialog;
 import android.app.Fragment;
 import android.app.FragmentManager;
@@ -9,6 +10,8 @@ import android.bluetooth.BluetoothManager;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.location.LocationManager;
 import android.net.Uri;
 import android.nfc.NfcAdapter;
 import android.os.Bundle;
@@ -16,6 +19,8 @@ import android.provider.Settings;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.NavigationView;
 import android.support.design.widget.Snackbar;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.view.MenuItemCompat;
 import android.support.v4.widget.DrawerLayout;
@@ -29,25 +34,38 @@ import android.widget.CompoundButton;
 import android.widget.Switch;
 import android.widget.Toast;
 
+import com.firebase.client.Firebase;
+
 public class MainActivity extends AppCompatActivity
-        implements NavigationView.OnNavigationItemSelectedListener, UnlockFragment.OnFragmentInteractionListener {
+        implements NavigationView.OnNavigationItemSelectedListener, UnlockFragment
+        .OnFragmentInteractionListener {
 
 
+    private static final int REQUEST_ENABLE_BT = 1;
+    private static final int REQUEST_ENABLE_LOCATION = 1;
+    private static final int MY_PERMISSIONS_REQUEST_LOCATION = 1;
     FragmentManager fragmentManager;
     FragmentTransaction fragmentTransaction;
     View viewSwitchLayout;
-
-    private static final int REQUEST_ENABLE_BT = 1;
-
     private BluetoothAdapter mBluetoothAdapter;
-
-    //TODO: remove if not needed. If using nfc foreground detection or opening already running activities and adding the nfc intent to a list, than use this:
+    //TODO: remove if not needed. If using nfc foreground detection or opening already running
+    // activities and adding the nfc intent to a list, than use this:
 //    private PendingIntent mPendingIntent;
     private Switch toolbarSwitch;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        if (savedInstanceState == null)
+            Firebase.setAndroidContext(this);
+        Firebase firebase = new Firebase(Constants.FIREBASE_URL);
+//        if(firebase.getAuth() == null || isExpired(firebase.getAuth())){
+//            switchFragment(LoginFragment.newInstance(), R.id.content_frame);
+//        }else{
+//            SwitchFragment(Constants.FIREBASE_URL + "/users");
+//        }
+
         setContentView(R.layout.mainactivity_layout);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -65,7 +83,8 @@ public class MainActivity extends AppCompatActivity
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
-                this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
+                this, drawer, toolbar, R.string.navigation_drawer_open, R.string
+                .navigation_drawer_close);
         drawer.setDrawerListener(toggle);
         toggle.syncState();
 
@@ -90,7 +109,8 @@ public class MainActivity extends AppCompatActivity
         super.onResume();
 //        Intent intent = getIntent();
 
-        //TODO: remove if not needed. If using nfc foreground detection or opening already running activities and adding the nfc intent to a list, than use this:
+        //TODO: remove if not needed. If using nfc foreground detection or opening already
+        // running activities and adding the nfc intent to a list, than use this:
 //        if (mAdapter != null && mAdapter.isEnabled()) {
 //            mAdapter.enableForegroundDispatch(this, mPendingIntent, null, null);
 //        }
@@ -100,7 +120,8 @@ public class MainActivity extends AppCompatActivity
     }
 
     /**
-     * Initializing other views and components. this method is usually called by the OnCreate method.
+     * Initializing other views and components. this method is usually called by the OnCreate
+     * method.
      */
     private void components() {
         final BluetoothManager bluetoothManager =
@@ -138,20 +159,50 @@ public class MainActivity extends AppCompatActivity
                 if (isChecked) {
                     NfcAdapter nfcAdapter = NfcAdapter.getDefaultAdapter(MainActivity.this);
                     if (nfcAdapter == null) {
-                        Toast.makeText(MainActivity.this, R.string.no_nfc, Toast.LENGTH_LONG).show();
+                        Toast.makeText(MainActivity.this, R.string.no_nfc, Toast.LENGTH_LONG)
+                                .show();
                         toolbarSwitch.setChecked(false);
                     } else if (!nfcAdapter.isEnabled()) {
                         showWirelessSettingsDialog();
                     } else {
-                        Toast.makeText(MainActivity.this, "NFC available", Toast.LENGTH_LONG).show();
+                        Toast.makeText(MainActivity.this, "NFC available", Toast.LENGTH_LONG)
+                                .show();
                     }
 
                     enableBluetooth();
+                    if (!enableLocation()) {
+                        Toast.makeText(MainActivity.this, "Please enable permission", Toast
+                                .LENGTH_LONG).show();
+                        toolbarSwitch.setChecked(false);
+                    }
+
                 }
             }
         });
 
         return true;        //Indicating that we want to display this menu item now.
+    }
+
+    private boolean enableLocation() {
+        if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission
+                .ACCESS_COARSE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(MainActivity.this,
+                    new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
+                    MY_PERMISSIONS_REQUEST_LOCATION);
+            return false;
+        } else {
+            LocationManager manager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+            if (!manager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                Intent enableLocationIntent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                MainActivity.this.startActivityForResult(enableLocationIntent,
+                        REQUEST_ENABLE_LOCATION);
+                // TODO: 5/2/2016 Make this more user friendly... if permission denied or 
+                // location not turned on so set toolbarSwitch to false. If location on and 
+                // permission granted and bluetooth and nfc are on set toolbarSwitch to true.
+            }
+        }
+        return true;
     }
 
     public void enableBluetooth() {
