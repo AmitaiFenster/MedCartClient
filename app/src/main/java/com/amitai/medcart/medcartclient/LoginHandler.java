@@ -9,8 +9,10 @@ import android.util.Log;
 import android.widget.Toast;
 
 import com.firebase.client.AuthData;
+import com.firebase.client.DataSnapshot;
 import com.firebase.client.Firebase;
 import com.firebase.client.FirebaseError;
+import com.firebase.client.ValueEventListener;
 import com.google.android.gms.auth.GoogleAuthException;
 import com.google.android.gms.auth.GoogleAuthUtil;
 import com.google.android.gms.auth.UserRecoverableAuthException;
@@ -175,14 +177,30 @@ public class LoginHandler implements LoginFragment.OnLoginListener, GoogleApiCli
         public void onAuthenticated(AuthData authData) {
 //            switchToMainFragment(Constants.FIREBASE_URL + "/users/" + authData.getUid());
 
-            final Firebase ref = new Firebase(Constants.FIREBASE_URL);
+            final Firebase ref = new Firebase(Constants.FIREBASE_URL + "/users/");
+            final AuthData authDataFinal = authData;
 
-            Map<String, String> map = new HashMap<String, String>();
-            map.put("provider", authData.getProvider());
-            if (authData.getProviderData().containsKey("displayName")) {
-                map.put("displayName", authData.getProviderData().get("displayName").toString());
-            }
-            ref.child("users").child(authData.getUid()).setValue(map);
+            ref.addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(DataSnapshot snapshot) {
+                    if (!snapshot.hasChild(authDataFinal.getUid())) {
+                        Map<String, String> map = new HashMap<String, String>();
+                        map.put("email", (String) authDataFinal.getProviderData().get("email"));
+                        map.put("provider", authDataFinal.getProvider());
+                        map.put("permission", "user");
+                        if (authDataFinal.getProviderData().containsKey("displayName")) {
+                            map.put("displayName", authDataFinal.getProviderData().get
+                                    ("displayName")
+                                    .toString());
+                        }
+                        ref.child(authDataFinal.getUid()).setValue(map);
+                    }
+                }
+
+                @Override
+                public void onCancelled(FirebaseError firebaseError) {
+                }
+            });
 
             tryAccessMainFragment();
         }
