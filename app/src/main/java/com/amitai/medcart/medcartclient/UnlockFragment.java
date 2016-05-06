@@ -28,8 +28,8 @@ import java.util.Map;
 public class UnlockFragment extends Fragment {
     // TODO: Rename parameter arguments, choose names that match
     // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-    private static final String ARG_PARAM1 = "param1";
-    private static final String ARG_PARAM2 = "param2";
+//    private static final String ARG_PARAM1 = "param1";
+
 
     ListView myList;
     View rootView;
@@ -38,10 +38,10 @@ public class UnlockFragment extends Fragment {
     List<Map<String, String>> listData;
     //DEFINING A STRING ADAPTER WHICH WILL HANDLE THE DATA OF THE LISTVIEW.
     SimpleAdapter adapter;
+    String repoUrl;
     private NfcAdapter mAdapter;
     // TODO: Rename and change types of parameters
-    private String mParam1;
-    private String mParam2;
+//    private String mParam1;
     private OnFragmentInteractionListener mListener;
     private TextView mainText;
 
@@ -54,16 +54,14 @@ public class UnlockFragment extends Fragment {
      * Use this factory method to create a new instance of
      * this fragment using the provided parameters.
      *
-     * @param param1 Parameter 1.
-     * @param param2 Parameter 2.
+     * @param repoUrl this specific user UID Firebase URL.
      * @return A new instance of fragment UnlockFragment.
      */
     // TODO: Rename and change types and number of parameters
-    public static UnlockFragment newInstance(/*String param1, String param2*/) {
+    public static UnlockFragment newInstance(String repoUrl) {
         UnlockFragment fragment = new UnlockFragment();
         Bundle args = new Bundle();
-//        args.putString(ARG_PARAM1, param1);
-//        args.putString(ARG_PARAM2, param2);
+        args.putString(Constants.FIREBASE, repoUrl);
         fragment.setArguments(args);
         return fragment;
     }
@@ -72,8 +70,7 @@ public class UnlockFragment extends Fragment {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         if (getArguments() != null) {
-            mParam1 = getArguments().getString(ARG_PARAM1);
-            mParam2 = getArguments().getString(ARG_PARAM2);
+            repoUrl = getArguments().getString(Constants.FIREBASE);
         }
     }
 
@@ -81,10 +78,13 @@ public class UnlockFragment extends Fragment {
     public void onResume() {
         super.onResume();
         Intent intent = getActivity().getIntent();
-        if (NfcAdapter.ACTION_TECH_DISCOVERED.equals(intent.getAction())) {
+        if (NfcAdapter.ACTION_TECH_DISCOVERED.equals(intent.getAction()) && ((MainActivity)
+                getActivity())
+                .enableAllComponents()) {
             mainText.setText(NFC.getTagUID(intent));
             UnlockService.startActionUnlockUsingNFC(getContext(), NFC.ByteArrayToHexString(intent
-                    .getByteArrayExtra(NfcAdapter.EXTRA_ID)), null);
+                    .getByteArrayExtra(NfcAdapter.EXTRA_ID)), getArguments().getString(Constants
+                    .FIREBASE));
         }
     }
 
