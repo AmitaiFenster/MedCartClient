@@ -20,6 +20,8 @@ import android.os.Message;
 import android.util.Log;
 import android.widget.Toast;
 
+import com.firebase.client.Firebase;
+
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -45,14 +47,15 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
     // Stops scanning after 10 seconds.
     private static final long SCAN_PERIOD = 10000;
     private static final String DEVICE_NAME = "ZL-RC02D";
-    private static final String TAG = "BLEScanConnect";
+    private Firebase mFirebasePermissions;
     BLEScanConnect BLEConnection;
     BluetoothDevice mDevice;
     ScanCallback mScanCallback = new ScanCallback() {
         @Override
         public void onScanResult(int callbackType, ScanResult result) {
             BluetoothDevice device = result.getDevice();
-//            Log.i(TAG, "New LE Device: " + device.getName() + ", Address: " + device
+//            Log.i(Constants.TAG_UnlockService, "New LE Device: " + device.getName() + ",
+// Address: " + device
 //                    .getAddress() +
 //                    " @ " +
 //                    "" + result.rssi);
@@ -71,7 +74,7 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
 
         @Override
         public void onScanFailed(int errorCode) {
-            Log.i(TAG, "Scan Faild!!");
+            Log.i(Constants.TAG_UnlockService, "Scan Faild!!");
         }
     };
     private BluetoothManager bluetoothManager;
@@ -94,7 +97,7 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
         public void onReceive(Context context, Intent intent) {
             final String action = intent.getAction();
             if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
-                Log.e(TAG, "Only gatt, just wait");
+                Log.e(Constants.TAG_UnlockService, "Only gatt, just wait");
             } else if (BluetoothLeService.ACTION_GATT_DISCONNECTED
                     .equals(action)) {
                 mConnected = false;
@@ -104,10 +107,10 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
                 mConnected = true;
                 isBTConnected = true;
 
-                Log.e(TAG, "In what we need");
+                Log.e(Constants.TAG_UnlockService, "In what we need");
 
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
-                Log.e(TAG, "RECV DATA");
+                Log.e(Constants.TAG_UnlockService, "RECV DATA");
                 String data = intent.getStringExtra(BluetoothLeService.EXTRA_DATA);
                 if (data != null) {
 
@@ -128,9 +131,9 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
 
             mBluetoothLeService = ((BluetoothLeService.LocalBinder) service).getService();
             if (!mBluetoothLeService.initialize()) {
-                Log.e(TAG, "Unable to initialize Bluetooth");
+                Log.e(Constants.TAG_UnlockService, "Unable to initialize Bluetooth");
             } else {
-                Log.e(TAG, "mBluetoothLeService is okay");
+                Log.e(Constants.TAG_UnlockService, "mBluetoothLeService is okay");
 //  			mBluetoothLeService.connect(mDeviceAddress);
             }
         }
@@ -162,11 +165,11 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
      * @see IntentService
      */
     // TODO: Customize helper method
-    public static void startActionUnlockUsingNFC(Context context, String NFC_UID, String param2) {
+    public static void startActionUnlockUsingNFC(Context context, String NFC_UID, String firebaseUrl) {
         Intent intent = new Intent(context, UnlockService.class);
         intent.setAction(ACTION_UNLOCK_USING_NFC);
         intent.putExtra(EXTRA_NFC_UID, NFC_UID);
-        intent.putExtra(EXTRA_PARAM2, param2);
+        intent.putExtra(Constants.FIREBASE, firebaseUrl);
         context.startService(intent);
     }
 
@@ -201,7 +204,7 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
         super.onCreate();
 
         Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
-        Log.d(TAG, "Try to bindService=" + this.bindService(gattServiceIntent,
+        Log.d(Constants.TAG_UnlockService, "Try to bindService=" + this.bindService(gattServiceIntent,
                 mServiceConnection,
                 Context.BIND_AUTO_CREATE));
         registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
@@ -220,9 +223,10 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
 
             final String action = intent.getAction();
             if (ACTION_UNLOCK_USING_NFC.equals(action)) {
-                final String param1 = intent.getStringExtra(EXTRA_NFC_UID);
-                final String param2 = intent.getStringExtra(EXTRA_PARAM2);
-                handleActionUnlockUsingNFC(param1, param2);
+                final String NFC_UID = intent.getStringExtra(EXTRA_NFC_UID);
+                final String firebaseUrl = intent.getStringExtra(Constants.FIREBASE);
+                mFirebasePermissions = new Firebase(firebaseUrl);
+                handleActionUnlockUsingNFC(NFC_UID);
             }
 //            } else if (ACTION_BAZ.equals(action)) {
 //                final String param1 = intent.getStringExtra(EXTRA_PARAM1);
@@ -238,26 +242,18 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
      *
      * @param NFC_UID UID of the NFC tag.
      */
-    private void handleActionUnlockUsingNFC(String NFC_UID, String param2) {
-        if (permission(NFC_UID)) {
-            connectBLE(getBluetoothAddreess(NFC_UID));
+    private void handleActionUnlockUsingNFC(String NFC_UID) {
+        String mBluetoothAddress = getBluetoothAddreess(NFC_UID);
+        if (mBluetoothAddress != null) {
+            connectBLE(mBluetoothAddress);
         } else {
-            Toast.makeText(UnlockService.this, "No premission ", Toast.LENGTH_LONG).show();
+            Toast.makeText(UnlockService.this, "No permission", Toast.LENGTH_LONG).show();
         }
     }
 
     private void connectBLE(String bluetoothAddreess) {
         deviceAddress = bluetoothAddreess;
         scanLeDevice(true);
-    }
-
-    /**
-     * @param NFC_UID NFC Tag UID
-     * @return true if permission is granted and false otherwise;
-     */
-    // TODO: 4/22/2016 edit function to recive permission from the sever database.
-    private boolean permission(String NFC_UID) {
-        return true;
     }
 
 //    /**
@@ -311,7 +307,7 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
         if (scan) {
             mScanning = true;
             mBluetoothLeScanner.startScan(mScanCallback);
-            Log.i(TAG, "Started LE scan");
+            Log.i(Constants.TAG_UnlockService, "Started LE scan");
         } else {
             mScanning = false;
             mBluetoothLeScanner.stopScan(mScanCallback);
@@ -323,16 +319,16 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
         if (mDevice == null) return;
 
         Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
-        Log.d(TAG, "Try to bindService=" + this.bindService(gattServiceIntent,
+        Log.d(Constants.TAG_UnlockService, "Try to bindService=" + this.bindService(gattServiceIntent,
                 mServiceConnection,
                 Context.BIND_AUTO_CREATE));
         registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
 
         final String mDeviceAddress = mDevice.getAddress();
-        Log.d(TAG, "service " + mBluetoothLeService);
+        Log.d(Constants.TAG_UnlockService, "service " + mBluetoothLeService);
 
         boolean isConnectionSuccess = mBluetoothLeService.connect(mDeviceAddress);
-        Log.d(TAG, "Connection success: " + isConnectionSuccess);
+        Log.d(Constants.TAG_UnlockService, "Connection success: " + isConnectionSuccess);
 
         if (mScanning) {
             BleScan(false);
