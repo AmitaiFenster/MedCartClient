@@ -7,9 +7,9 @@
             android:icon="@drawable/ic_action_unlock1_noback"
             android:title="Unlock" />
         <item
-            android:id="@+id/nav_sign_in_eiris"
+            android:id="@+id/login"
             android:icon="@drawable/ic_menu_login"
-            android:title="Eiris Sign In" />
+            android:title="Login"/>
         <item
             android:id="@+id/nav_test_connection"
             android:icon="@drawable/ic_menu_testconnection"

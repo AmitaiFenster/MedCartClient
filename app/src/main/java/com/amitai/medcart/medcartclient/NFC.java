@@ -38,6 +38,10 @@ public class NFC {
         return "";
     }
 
+    public static String ByteArrayToStringDisplayFormat(byte[] inarray) {
+        return stringUIDDisplayFormat(ByteArrayToHexString(inarray));
+    }
+
     /**
      * @param ID String with numbers only that represent the nfc tag UID.
      * @return String with the UID in a display format, with dashes between each byte.
@@ -46,7 +50,7 @@ public class NFC {
         char[] IDcharArray = ID.toCharArray();
         String hexStringIDfinal = "" + IDcharArray[0] + IDcharArray[1];
         for (int i = 2; i < IDcharArray.length; i += 2)
-            hexStringIDfinal += "-" + IDcharArray[i] + IDcharArray[i + 1];
+            hexStringIDfinal += ":" + IDcharArray[i] + IDcharArray[i + 1];
         return hexStringIDfinal;
     }
 

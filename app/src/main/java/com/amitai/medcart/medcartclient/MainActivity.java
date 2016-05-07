@@ -2,9 +2,6 @@ package com.amitai.medcart.medcartclient;
 
 import android.Manifest;
 import android.app.AlertDialog;
-import android.app.Fragment;
-import android.app.FragmentManager;
-import android.app.FragmentTransaction;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothManager;
 import android.content.Context;
@@ -35,18 +32,20 @@ import android.widget.Switch;
 import android.widget.Toast;
 
 import com.firebase.client.Firebase;
+import com.google.android.gms.auth.api.Auth;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.android.gms.common.api.GoogleApiClient;
 
+// TODO: 5/5/2016 If possible, have a diffrent class implement OnLoginListener.
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener, UnlockFragment
-        .OnFragmentInteractionListener {
+        .OnFragmentInteractionListener /*, LoginFragment.OnLoginListener */ {
 
-
-    private static final int REQUEST_ENABLE_BT = 1;
-    private static final int REQUEST_ENABLE_LOCATION = 1;
-    private static final int MY_PERMISSIONS_REQUEST_LOCATION = 1;
-    FragmentManager fragmentManager;
-    FragmentTransaction fragmentTransaction;
+    public FloatingActionButton fab;
+    public GoogleApiClient mGoogleApiClient;
     View viewSwitchLayout;
+    NavigationView navigationView;
+    LoginHandler login;
     private BluetoothAdapter mBluetoothAdapter;
     //TODO: remove if not needed. If using nfc foreground detection or opening already running
     // activities and adding the nfc intent to a list, than use this:
@@ -59,19 +58,13 @@ public class MainActivity extends AppCompatActivity
 
         if (savedInstanceState == null)
             Firebase.setAndroidContext(this);
-        Firebase firebase = new Firebase(Constants.FIREBASE_URL);
-//        if(firebase.getAuth() == null || isExpired(firebase.getAuth())){
-//            switchFragment(LoginFragment.newInstance(), R.id.content_frame);
-//        }else{
-//            SwitchFragment(Constants.FIREBASE_URL + "/users");
-//        }
 
         setContentView(R.layout.mainactivity_layout);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+        fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -89,18 +82,10 @@ public class MainActivity extends AppCompatActivity
         toggle.syncState();
 
 
-        NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
+        navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
-        navigationView.getMenu().getItem(0).setChecked(true);
 
         components();
-
-        //        //Setting up default fragment.
-        fragmentManager = getFragmentManager();
-        fragmentTransaction = fragmentManager.beginTransaction();
-        Fragment unlockFragment = UnlockFragment.newInstance();
-        fragmentTransaction.add(R.id.content_frame, unlockFragment);
-        fragmentTransaction.commit();
 
     }
 
@@ -133,6 +118,19 @@ public class MainActivity extends AppCompatActivity
             Toast.makeText(this, R.string.error_bluetooth_not_supported, Toast.LENGTH_SHORT).show();
             finish();
         }
+
+        login = new LoginHandler(this);
+        login.tryAccessMainFragment();
+
+        GoogleSignInOptions gso = new GoogleSignInOptions
+                .Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestEmail()
+                .build();
+        mGoogleApiClient = new GoogleApiClient
+                .Builder(this)
+                .enableAutoManage(this, login)
+                .addApi(Auth.GOOGLE_SIGN_IN_API, gso)
+                .build();
     }
 
     @Override
@@ -156,26 +154,8 @@ public class MainActivity extends AppCompatActivity
         toolbarSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                if (isChecked) {
-                    NfcAdapter nfcAdapter = NfcAdapter.getDefaultAdapter(MainActivity.this);
-                    if (nfcAdapter == null) {
-                        Toast.makeText(MainActivity.this, R.string.no_nfc, Toast.LENGTH_LONG)
-                                .show();
-                        toolbarSwitch.setChecked(false);
-                    } else if (!nfcAdapter.isEnabled()) {
-                        showWirelessSettingsDialog();
-                    } else {
-                        Toast.makeText(MainActivity.this, "NFC available", Toast.LENGTH_LONG)
-                                .show();
-                    }
-
-                    enableBluetooth();
-                    if (!enableLocation()) {
-                        Toast.makeText(MainActivity.this, "Please enable permission", Toast
-                                .LENGTH_LONG).show();
-                        toolbarSwitch.setChecked(false);
-                    }
-
+                if (isChecked && !enableAllComponents()) {
+                    toolbarSwitch.setChecked(false);
                 }
             }
         });
@@ -183,33 +163,77 @@ public class MainActivity extends AppCompatActivity
         return true;        //Indicating that we want to display this menu item now.
     }
 
+    /**
+     * Enabling all components, including: NFC, Bluetooth, Location.
+     *
+     * @return true if all components are enabled, and false otherwise.
+     */
+    public boolean enableAllComponents() {
+        return enableNFC() && enableBluetooth() && enableLocation();
+    }
+
+    /**
+     * this method checks if nfc is turned on (enabled). if not, the nfc wireless settings dialog
+     * will be opened so that the user can manually turn on nfc.
+     *
+     * @return True if nfc is Enabled. and false otherwise.
+     */
+    private boolean enableNFC() {
+        NfcAdapter nfcAdapter = NfcAdapter.getDefaultAdapter(MainActivity.this);
+        if (nfcAdapter == null) {
+            Toast.makeText(MainActivity.this, R.string.no_nfc, Toast.LENGTH_LONG)
+                    .show();
+            toolbarSwitch.setChecked(false);
+        } else if (!nfcAdapter.isEnabled()) {
+            showWirelessSettingsDialog();
+        } else {
+            Toast.makeText(MainActivity.this, "NFC available", Toast.LENGTH_LONG)
+                    .show();
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * this method checks if location is turned on (enabled). if not, an activity will be started
+     * to prompt the user to turn on location.
+     *
+     * @return true if location is enabled, and false otherwise.
+     */
     private boolean enableLocation() {
         if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission
                 .ACCESS_COARSE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(MainActivity.this,
                     new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
-                    MY_PERMISSIONS_REQUEST_LOCATION);
+                    Constants.MY_PERMISSIONS_REQUEST_LOCATION);
+            Toast.makeText(MainActivity.this, "Please enable permission", Toast
+                    .LENGTH_LONG).show();
             return false;
         } else {
             LocationManager manager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
             if (!manager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
                 Intent enableLocationIntent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
                 MainActivity.this.startActivityForResult(enableLocationIntent,
-                        REQUEST_ENABLE_LOCATION);
-                // TODO: 5/2/2016 Make this more user friendly... if permission denied or 
-                // location not turned on so set toolbarSwitch to false. If location on and 
-                // permission granted and bluetooth and nfc are on set toolbarSwitch to true.
+                        Constants.REQUEST_ENABLE_LOCATION);
+                return false;
             }
         }
         return true;
     }
 
-    public void enableBluetooth() {
+    /**
+     * Method to turn on Bluetooth.
+     *
+     * @return true if Bluetooth is enabled, and false otherwise.
+     */
+    public boolean enableBluetooth() {
         if (mBluetoothAdapter == null || !mBluetoothAdapter.isEnabled()) {
             Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+            startActivityForResult(enableBtIntent, Constants.REQUEST_ENABLE_BT);
+            return false;
         }
+        return true;
     }
 
     @Override
@@ -224,6 +248,9 @@ public class MainActivity extends AppCompatActivity
             return true;
         } else if (id == R.id.action_settings) {
             return true;
+        } else if (id == R.id.action_logout) {
+            login.logout();
+            return true;
         }
 
         return super.onOptionsItemSelected(item);
@@ -236,17 +263,16 @@ public class MainActivity extends AppCompatActivity
         int id = item.getItemId();
 
         if (id == R.id.nav_unlock) {
-            replaceFragment(UnlockFragment.newInstance());
-            setTitle(getResources().getString(R.string.app_name2));
-        } else if (id == R.id.nav_sign_in_eiris) {
-
+            login.tryAccessMainFragment();
+        } else if (id == R.id.login) {
+            login.switchToLoginFragment();
         } else if (id == R.id.nav_settings) {
 
         } else if (id == R.id.nav_test_connection) {
 
         } else if (id == R.id.nav_enroll_cart) {
-            replaceFragment(EnrollCartFragment.newInstance());
-            setTitle("Enroll Cart");
+//            replaceFragment(EnrollCartFragment.newInstance());
+//            setTitle("Enroll Cart");
         }
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
@@ -279,15 +305,21 @@ public class MainActivity extends AppCompatActivity
 
     }
 
-    /**
-     * Replacing current fragment with newFragment. Used for example when navigation drawer item
-     * is selected.
-     *
-     * @param newFragment
-     */
-    public void replaceFragment(Fragment newFragment) {
-        fragmentTransaction = fragmentManager.beginTransaction();
-        fragmentTransaction.replace(R.id.content_frame, newFragment);
-        fragmentTransaction.commit();
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        login.activityResult(requestCode, resultCode, data);
     }
+
+    // TODO: 5/5/2016 Remove if not needed.
+//    /**
+//     * Replacing current fragment with newFragment. Used for example when navigation drawer item
+//     * is selected.
+//     *
+//     * @param newFragment
+//     */
+//    public void replaceFragment(Fragment newFragment) {
+//        fragmentTransaction = fragmentManager.beginTransaction();
+//        fragmentTransaction.replace(R.id.content_frame, newFragment);
+//        fragmentTransaction.commit();
+//    }
 }
