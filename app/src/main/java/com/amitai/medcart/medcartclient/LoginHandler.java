@@ -175,7 +175,6 @@ public class LoginHandler implements LoginFragment.OnLoginListener, GoogleApiCli
 
         @Override
         public void onAuthenticated(AuthData authData) {
-//            switchToMainFragment(Constants.FIREBASE_URL + "/users/" + authData.getUid());
 
             final Firebase ref = new Firebase(Constants.FIREBASE_URL + "/users/");
             final AuthData authDataFinal = authData;
@@ -187,7 +186,7 @@ public class LoginHandler implements LoginFragment.OnLoginListener, GoogleApiCli
                         Map<String, String> map = new HashMap<String, String>();
                         map.put("email", (String) authDataFinal.getProviderData().get("email"));
                         map.put("provider", authDataFinal.getProvider());
-                        map.put("permission", "user");
+                        map.put("level", "user");
                         if (authDataFinal.getProviderData().containsKey("displayName")) {
                             map.put("displayName", authDataFinal.getProviderData().get
                                     ("displayName")
@@ -202,7 +201,8 @@ public class LoginHandler implements LoginFragment.OnLoginListener, GoogleApiCli
                 }
             });
 
-            tryAccessMainFragment();
+            switchToMainFragment(Constants.FIREBASE_URL + "/users/" + authData.getUid());
+//            tryAccessMainFragment();
         }
 
         @Override
