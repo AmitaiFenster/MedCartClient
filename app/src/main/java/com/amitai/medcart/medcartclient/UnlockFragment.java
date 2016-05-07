@@ -82,7 +82,8 @@ public class UnlockFragment extends Fragment {
                 getActivity())
                 .enableAllComponents()) {
             mainText.setText(NFC.getTagUID(intent));
-            UnlockService.startActionUnlockUsingNFC(getContext(), NFC.ByteArrayToHexString(intent
+            UnlockService.startActionUnlockUsingNFC(getContext(), NFC
+                    .ByteArrayToStringDisplayFormat(intent
                     .getByteArrayExtra(NfcAdapter.EXTRA_ID)), getArguments().getString(Constants
                     .FIREBASE));
         }

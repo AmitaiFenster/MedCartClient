@@ -20,7 +20,10 @@ import android.os.Message;
 import android.util.Log;
 import android.widget.Toast;
 
+import com.firebase.client.DataSnapshot;
 import com.firebase.client.Firebase;
+import com.firebase.client.FirebaseError;
+import com.firebase.client.ValueEventListener;
 
 import java.util.Timer;
 import java.util.TimerTask;
@@ -47,36 +50,9 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
     // Stops scanning after 10 seconds.
     private static final long SCAN_PERIOD = 10000;
     private static final String DEVICE_NAME = "ZL-RC02D";
-    private Firebase mFirebasePermissions;
     BLEScanConnect BLEConnection;
     BluetoothDevice mDevice;
-    ScanCallback mScanCallback = new ScanCallback() {
-        @Override
-        public void onScanResult(int callbackType, ScanResult result) {
-            BluetoothDevice device = result.getDevice();
-//            Log.i(Constants.TAG_UnlockService, "New LE Device: " + device.getName() + ",
-// Address: " + device
-//                    .getAddress() +
-//                    " @ " +
-//                    "" + result.rssi);
-            /**
-             * We are looking for relay devices only, so validate he name
-             * that each device reports before saving the ble device object.
-             */
-            if (/*DEVICE_NAME.equals(device.getName()) && */ deviceAddress.equals(device
-                            .getAddress()
-            )) {
-                mDevice = device;
-                BleScan(false);
-//                connectBluetoothDevice();
-            }
-        }
-
-        @Override
-        public void onScanFailed(int errorCode) {
-            Log.i(Constants.TAG_UnlockService, "Scan Faild!!");
-        }
-    };
+    private Firebase mFirebasePermissions;
     private BluetoothManager bluetoothManager;
     private BluetoothAdapter mBluetoothAdapter;
     private BluetoothLeScanner mBluetoothLeScanner;
@@ -144,17 +120,37 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
         }
     };
     private boolean mScanning;
+    ScanCallback mScanCallback = new ScanCallback() {
+        @Override
+        public void onScanResult(int callbackType, ScanResult result) {
+            BluetoothDevice device = result.getDevice();
+//            Log.i(Constants.TAG_UnlockService, "New LE Device: " + device.getName() + ",
+// Address: " + device
+//                    .getAddress() +
+//                    " @ " +
+//                    "" + result.rssi);
+            /**
+             * We are looking for relay devices only, so validate he name
+             * that each device reports before saving the ble device object.
+             */
+            if (/*DEVICE_NAME.equals(device.getName()) && */ deviceAddress.equals(device
+                            .getAddress()
+            )) {
+                mDevice = device;
+                BleScan(false);
+//                connectBluetoothDevice();
+            }
+        }
+
+        @Override
+        public void onScanFailed(int errorCode) {
+            Log.i(Constants.TAG_UnlockService, "Scan Faild!!");
+        }
+    };
     private Handler mHandler = new Handler();
-    // TODO: 4/25/2016 decide which scan callback to use. Check if location on manifest is needed.
 
     public UnlockService() {
         super("UnlockService");
-    }
-
-    @Override
-    public void onDestroy() {
-        unregisterReceiver(mGattUpdateReceiver);
-        super.onDestroy();
     }
 
     /**
@@ -165,7 +161,8 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
      * @see IntentService
      */
     // TODO: Customize helper method
-    public static void startActionUnlockUsingNFC(Context context, String NFC_UID, String firebaseUrl) {
+    public static void startActionUnlockUsingNFC(Context context, String NFC_UID, String
+            firebaseUrl) {
         Intent intent = new Intent(context, UnlockService.class);
         intent.setAction(ACTION_UNLOCK_USING_NFC);
         intent.putExtra(EXTRA_NFC_UID, NFC_UID);
@@ -181,6 +178,12 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
         intentFilter.addAction(BluetoothLeService.ACTION_DATA_AVAILABLE);
         intentFilter.addAction(BluetoothDevice.ACTION_UUID);
         return intentFilter;
+    }
+
+    @Override
+    public void onDestroy() {
+        unregisterReceiver(mGattUpdateReceiver);
+        super.onDestroy();
     }
 
 
@@ -204,9 +207,12 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
         super.onCreate();
 
         Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
-        Log.d(Constants.TAG_UnlockService, "Try to bindService=" + this.bindService(gattServiceIntent,
-                mServiceConnection,
-                Context.BIND_AUTO_CREATE));
+        // TODO: 5/8/2016 Check why bind service returns false, and why the is a error logged
+        // that UnlockService has leaked ServiceConnection.
+        Log.d(Constants.TAG_UnlockService, "Try to bindService=" + this.bindService
+                (gattServiceIntent,
+                        mServiceConnection,
+                        Context.BIND_AUTO_CREATE));
         registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
     }
 
@@ -226,28 +232,13 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
                 final String NFC_UID = intent.getStringExtra(EXTRA_NFC_UID);
                 final String firebaseUrl = intent.getStringExtra(Constants.FIREBASE);
                 mFirebasePermissions = new Firebase(firebaseUrl);
-                handleActionUnlockUsingNFC(NFC_UID);
+                handleActionUnlockUsingNFC(NFC_UID, mFirebasePermissions);
             }
 //            } else if (ACTION_BAZ.equals(action)) {
 //                final String param1 = intent.getStringExtra(EXTRA_PARAM1);
 //                final String param2 = intent.getStringExtra(EXTRA_PARAM2);
 //                handleActionBaz(param1, param2);
 //            }
-        }
-    }
-
-    /**
-     * Handle action UnlockUsingNFC in the provided background thread with the provided
-     * parameters.
-     *
-     * @param NFC_UID UID of the NFC tag.
-     */
-    private void handleActionUnlockUsingNFC(String NFC_UID) {
-        String mBluetoothAddress = getBluetoothAddreess(NFC_UID);
-        if (mBluetoothAddress != null) {
-            connectBLE(mBluetoothAddress);
-        } else {
-            Toast.makeText(UnlockService.this, "No permission", Toast.LENGTH_LONG).show();
         }
     }
 
@@ -266,15 +257,65 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
 //    }
 
     /**
-     * @param NFC_UID
-     * @return the address of the Bluetooth relay corresponding to the NFC Tag UID.
+     * Handle action UnlockUsingNFC in the provided background thread with the provided
+     * parameters.
+     *
+     * @param NFC_UID  of the NFC tag.
+     * @param firebase pointing to the user.
      */
     // TODO: 4/22/2016 Edit function to recive the BLE address from the server database.
-    private String getBluetoothAddreess(String NFC_UID) {
-        //BLE Relay device:
-        return "BB:A0:51:00:00:8F";
-        //BLE Sensor tag:
-//        return "1C:BA:8C:20:C9:21";
+    private void handleActionUnlockUsingNFC(final String NFC_UID, Firebase firebase) {
+        Firebase firebaseMain = new Firebase(Constants.FIREBASE_URL);
+
+        firebase = firebase.child("authorization");
+        firebase.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                final Iterable<DataSnapshot> authorizationSnapshots = dataSnapshot.getChildren();
+                Firebase firebaseRelays = new Firebase(Constants.FIREBASE_URL + "relays");
+
+                firebaseRelays.addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(DataSnapshot dataSnapshot) {
+                        Iterable<DataSnapshot> relays = dataSnapshot.getChildren();
+                        boolean isAuthorized = false;
+                        DataSnapshot correspondingRelay = null;
+
+                        for (DataSnapshot relay : relays) {
+                            String a = relay.child("NFCuid").getValue(String.class);
+                            if (relay.child("NFCuid").getValue(String.class).equals(NFC_UID)) {
+                                String relayName = relay.getKey();
+
+                                for (DataSnapshot authorizationSnap : authorizationSnapshots) {
+                                    if (authorizationSnap.getValue(Boolean.class) &&
+                                            authorizationSnap.getKey().equals(relayName)) {
+                                        isAuthorized = true;
+                                        correspondingRelay = relay;
+                                        break;
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                        Toast.makeText(UnlockService.this, "Permission: " + isAuthorized, Toast
+                                .LENGTH_LONG).show();
+//                        if (isAuthorized)
+//                            connectBLE(correspondingRelay.child("BLEuid").getValue(String.class));
+                    }
+
+                    @Override
+                    public void onCancelled(FirebaseError firebaseError) {
+
+                    }
+                });
+
+            }
+
+            @Override
+            public void onCancelled(FirebaseError firebaseError) {
+
+            }
+        });
     }
 
     /**
@@ -319,9 +360,10 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
         if (mDevice == null) return;
 
         Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
-        Log.d(Constants.TAG_UnlockService, "Try to bindService=" + this.bindService(gattServiceIntent,
-                mServiceConnection,
-                Context.BIND_AUTO_CREATE));
+        Log.d(Constants.TAG_UnlockService, "Try to bindService=" + this.bindService
+                (gattServiceIntent,
+                        mServiceConnection,
+                        Context.BIND_AUTO_CREATE));
         registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
 
         final String mDeviceAddress = mDevice.getAddress();
