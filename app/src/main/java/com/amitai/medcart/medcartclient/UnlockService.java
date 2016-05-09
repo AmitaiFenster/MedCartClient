@@ -38,7 +38,7 @@ public class UnlockService extends Service {
     private BluetoothManager bluetoothManager;
     private BluetoothAdapter mBluetoothAdapter;
     private BluetoothLeScanner mBluetoothLeScanner;
-    private String defaultBT = "";
+    private String btPassword = "";
     private TimerTask task2;
     private Timer timer2;
     private TimerTask task1;
@@ -53,7 +53,8 @@ public class UnlockService extends Service {
     private TimerTask task5;
     private Timer timer5;
 
-    private int relayStateFlag = 0;
+    private int relay1StateFlag = 0;
+    private int relay2StateFlag = 0;
     private boolean mConnected = false; //Is GATT established.
     private boolean isBTConnected = false;  //Is Bluetooth connected.
     private final BroadcastReceiver mGattUpdateReceiver = new BroadcastReceiver() {
@@ -108,6 +109,8 @@ public class UnlockService extends Service {
         }
     };
     private boolean mScanning;
+    private Handler mHandler = new Handler();
+    private int targetRelayNum;
     ScanCallback mScanCallback = new ScanCallback() {
         @Override
         public void onScanResult(int callbackType, ScanResult result) {
@@ -135,7 +138,6 @@ public class UnlockService extends Service {
             Log.i(Constants.TAG_UnlockService, "Scan Faild!!");
         }
     };
-    private Handler mHandler = new Handler();
 
 
     public UnlockService() {
@@ -145,9 +147,9 @@ public class UnlockService extends Service {
      * Starts this service to perform action UnlockUsingNFC with the given parameters. If
      * the service is already performing a task this action will be queued.
      *
-     * @param context
+     * @param context the context that started this service.
      * @param NFC_UID     NFC tag UID.
-     * @param firebaseUrl
+     * @param firebaseUrl Firebase URL of pointing to the user data on the Firebase database.
      */
     public static void startActionUnlockUsingNFC(Context context, String NFC_UID, String
             firebaseUrl) {
@@ -275,7 +277,11 @@ public class UnlockService extends Service {
                         Toast.makeText(UnlockService.this, "Permission: " + isAuthorized, Toast
                                 .LENGTH_LONG).show();
                         if (isAuthorized)
-                            connectBLE(correspondingRelay.child("BLEuid").getValue(String.class));
+                            connectBLE(correspondingRelay.child("BLEuid").getValue(String.class),
+                                    (int) ((double) correspondingRelay.child("BLERelayNum").getValue
+                                            (Double.class)));
+                        else
+                            stopSelf();
                     }
 
                     @Override
@@ -293,8 +299,9 @@ public class UnlockService extends Service {
         });
     }
 
-    private void connectBLE(String bluetoothAddreess) {
-        deviceAddress = bluetoothAddreess;
+    private void connectBLE(String bluetoothAddreess, int relayNum) {
+        this.targetRelayNum = relayNum;
+        this.deviceAddress = bluetoothAddreess;
         scanLeDevice(true);
     }
 
@@ -448,8 +455,12 @@ public class UnlockService extends Service {
                     timer4 = new Timer();
                     timer4.schedule(task4, 4000);
                 }
-                timer5 = new Timer();
-                timer5.schedule(task5, 6000);
+                new Timer().schedule(new TimerTask() {
+                    @Override
+                    public void run() {
+                        stopSelf();
+                    }
+                }, 6000);
             }
         };
         timer2 = new Timer();
@@ -463,6 +474,9 @@ public class UnlockService extends Service {
 //        }
     }
 
+    /**
+     * Switch the relay. if the relay is opened it will close, and if it is closed it will open.
+     */
     public void switchRelay() {
         if (!isBTConnected) {
             Toast.makeText(this, "Bluetooth is not connected, first check equipment", Toast
@@ -470,50 +484,40 @@ public class UnlockService extends Service {
                     .show();
             return;
         }
-//        defaultBT = share.getString("defaultBT", "12345678");
-        defaultBT = "12345678";
-        if (relayStateFlag == 0) {
-            //1 open road
-            byte[] data = {(byte) 0xC5, (byte) 0x04, (byte) 0x99, (byte) 0x99, (byte)
-                    0x99, (byte) 0x99, (byte) 0x99, (byte) 0x99, (byte) 0x99, (byte)
-                    0x99, (byte) 0xAA};
-            relayStateFlag = 1;
-            if (defaultBT.length() < 8) {
-                Toast.makeText(this, "Please set the correct password in the settings 8",
-                        Toast.LENGTH_SHORT).show();
-            } else {
-                data[2] = (byte) defaultBT.charAt(0);
-                data[3] = (byte) defaultBT.charAt(1);
-                data[4] = (byte) defaultBT.charAt(2);
-                data[5] = (byte) defaultBT.charAt(3);
-                data[6] = (byte) defaultBT.charAt(4);
-                data[7] = (byte) defaultBT.charAt(5);
-                data[8] = (byte) defaultBT.charAt(6);
-                data[9] = (byte) defaultBT.charAt(7);
-                mBluetoothLeService.WriteBytes(data);
-            }
-            //startbutton3.setBackgroundResource(R.drawable.ii);
+        // TODO: 5/9/2016 Get name and password of the Bluetooth LE relay device from Firebase.
+//        btPassword = share.getString("defaultBT", "12345678");
+        btPassword = "12345678";
 
+        if (btPassword.length() < 8) {
+            Toast.makeText(this, "Please set the correct password",
+                    Toast.LENGTH_SHORT).show();
         } else {
-            //1 off road
-            byte[] data = {(byte) 0xC5, (byte) 0x06, (byte) 0x99, (byte) 0x99, (byte)
-                    0x99, (byte) 0x99, (byte) 0x99, (byte) 0x99, (byte) 0x99, (byte)
-                    0x99, (byte) 0xAA};
-            relayStateFlag = 0;
-            if (defaultBT.length() < 8) {
-                Toast.makeText(this, "Please set the correct password in the settings 8",
-                        Toast.LENGTH_SHORT).show();
-            } else {
 
-                data[2] = (byte) defaultBT.charAt(0);
-                data[3] = (byte) defaultBT.charAt(1);
-                data[4] = (byte) defaultBT.charAt(2);
-                data[5] = (byte) defaultBT.charAt(3);
-                data[6] = (byte) defaultBT.charAt(4);
-                data[7] = (byte) defaultBT.charAt(5);
-                data[8] = (byte) defaultBT.charAt(6);
-                data[9] = (byte) defaultBT.charAt(7);
-                mBluetoothLeService.WriteBytes(data);
+            byte[] data;
+            if (targetRelayNum == 1) {
+                if (relay1StateFlag == 0) {
+                    //relay 1 open
+                    data = WritingDataFormat.getDataRelay1Open(btPassword);
+                    mBluetoothLeService.WriteBytes(data);
+                    relay1StateFlag = 1;
+                } else {
+                    //relay 1 close
+                    data = WritingDataFormat.getDataRelay1Close(btPassword);
+                    mBluetoothLeService.WriteBytes(data);
+                    relay1StateFlag = 0;
+                }
+            } else if (targetRelayNum == 2) {
+                if (relay2StateFlag == 0) {
+                    //relay 2 open
+                    data = WritingDataFormat.getDataRelay2Open(btPassword);
+                    mBluetoothLeService.WriteBytes(data);
+                    relay2StateFlag = 1;
+                } else {
+                    //relay 2 close
+                    data = WritingDataFormat.getDataRelay2Close(btPassword);
+                    mBluetoothLeService.WriteBytes(data);
+                    relay2StateFlag = 0;
+                }
             }
         }
     }
