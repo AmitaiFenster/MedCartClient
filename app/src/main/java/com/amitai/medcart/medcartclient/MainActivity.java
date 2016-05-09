@@ -1,23 +1,12 @@
 package com.amitai.medcart.medcartclient;
 
-import android.Manifest;
-import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothManager;
-import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.location.LocationManager;
 import android.net.Uri;
-import android.nfc.NfcAdapter;
 import android.os.Bundle;
-import android.provider.Settings;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.NavigationView;
 import android.support.design.widget.Snackbar;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.view.MenuItemCompat;
 import android.support.v4.widget.DrawerLayout;
@@ -29,7 +18,6 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.CompoundButton;
 import android.widget.Switch;
-import android.widget.Toast;
 
 import com.firebase.client.Firebase;
 import com.google.android.gms.auth.api.Auth;
@@ -38,7 +26,7 @@ import com.google.android.gms.common.api.GoogleApiClient;
 
 // TODO: 5/5/2016 If possible, have a diffrent class implement OnLoginListener.
 public class MainActivity extends AppCompatActivity
-        implements NavigationView.OnNavigationItemSelectedListener, UnlockFragment
+        implements NavigationView.OnNavigationItemSelectedListener, MainFragment
         .OnFragmentInteractionListener /*, LoginFragment.OnLoginListener */ {
 
     public FloatingActionButton fab;
@@ -109,15 +97,16 @@ public class MainActivity extends AppCompatActivity
      * method.
      */
     private void components() {
-        final BluetoothManager bluetoothManager =
-                (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
-        mBluetoothAdapter = bluetoothManager.getAdapter();
-
-        // Checks if Bluetooth is supported on the device.
-        if (mBluetoothAdapter == null) {
-            Toast.makeText(this, R.string.error_bluetooth_not_supported, Toast.LENGTH_SHORT).show();
-            finish();
-        }
+//        final BluetoothManager bluetoothManager =
+//                (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
+//        mBluetoothAdapter = bluetoothManager.getAdapter();
+//
+//        // Checks if Bluetooth is supported on the device.
+//        if (mBluetoothAdapter == null) {
+//            Toast.makeText(this, R.string.error_bluetooth_not_supported, Toast.LENGTH_SHORT)
+// .show();
+//            finish();
+//        }
 
         login = new LoginHandler(this);
         login.tryAccessMainFragment();
@@ -169,71 +158,11 @@ public class MainActivity extends AppCompatActivity
      * @return true if all components are enabled, and false otherwise.
      */
     public boolean enableAllComponents() {
-        return enableNFC() && enableBluetooth() && enableLocation();
-    }
-
-    /**
-     * this method checks if nfc is turned on (enabled). if not, the nfc wireless settings dialog
-     * will be opened so that the user can manually turn on nfc.
-     *
-     * @return True if nfc is Enabled. and false otherwise.
-     */
-    private boolean enableNFC() {
-        NfcAdapter nfcAdapter = NfcAdapter.getDefaultAdapter(MainActivity.this);
-        if (nfcAdapter == null) {
-            Toast.makeText(MainActivity.this, R.string.no_nfc, Toast.LENGTH_LONG)
-                    .show();
+        boolean bool = EnablingComponents.enableAllComponents(MainActivity.this, mBluetoothAdapter);
+        if (!bool) {
             toolbarSwitch.setChecked(false);
-        } else if (!nfcAdapter.isEnabled()) {
-            showWirelessSettingsDialog();
-        } else {
-//            Toast.makeText(MainActivity.this, "NFC available", Toast.LENGTH_LONG)
-//                    .show();
-            return true;
         }
-        return false;
-    }
-
-    /**
-     * this method checks if location is turned on (enabled). if not, an activity will be started
-     * to prompt the user to turn on location.
-     *
-     * @return true if location is enabled, and false otherwise.
-     */
-    private boolean enableLocation() {
-        if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission
-                .ACCESS_COARSE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(MainActivity.this,
-                    new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
-                    Constants.MY_PERMISSIONS_REQUEST_LOCATION);
-            Toast.makeText(MainActivity.this, "Please enable permission", Toast
-                    .LENGTH_LONG).show();
-            return false;
-        } else {
-            LocationManager manager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-            if (!manager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                Intent enableLocationIntent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-                MainActivity.this.startActivityForResult(enableLocationIntent,
-                        Constants.REQUEST_ENABLE_LOCATION);
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * Method to turn on Bluetooth.
-     *
-     * @return true if Bluetooth is enabled, and false otherwise.
-     */
-    public boolean enableBluetooth() {
-        if (mBluetoothAdapter == null || !mBluetoothAdapter.isEnabled()) {
-            Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            startActivityForResult(enableBtIntent, Constants.REQUEST_ENABLE_BT);
-            return false;
-        }
-        return true;
+        return bool;
     }
 
     @Override
@@ -262,7 +191,7 @@ public class MainActivity extends AppCompatActivity
         // Handle navigation view item clicks here.
         int id = item.getItemId();
 
-        if (id == R.id.nav_unlock) {
+        if (id == R.id.nav_main) {
             login.tryAccessMainFragment();
         } else if (id == R.id.login) {
             login.switchToLoginFragment();
@@ -278,26 +207,6 @@ public class MainActivity extends AppCompatActivity
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         drawer.closeDrawer(GravityCompat.START);
         return true;
-    }
-
-    /**
-     * Opens the Wireless Settings Dialog so that the user could turn on the NFC.
-     */
-    private void showWirelessSettingsDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setMessage(R.string.nfc_disabled);
-        builder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialogInterface, int i) {
-                Intent intent = new Intent(Settings.ACTION_WIRELESS_SETTINGS);
-                startActivity(intent);
-            }
-        });
-        builder.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialogInterface, int i) {
-                toolbarSwitch.setChecked(false);
-            }
-        });
-        builder.create().show();
     }
 
     @Override

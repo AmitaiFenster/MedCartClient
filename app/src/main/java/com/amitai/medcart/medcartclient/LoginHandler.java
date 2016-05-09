@@ -125,7 +125,7 @@ public class LoginHandler implements LoginFragment.OnLoginListener, GoogleApiCli
     public void tryAccessMainFragment() {
         Firebase firebase = new Firebase(Constants.FIREBASE_URL);
         AuthData auth = firebase.getAuth();
-        if (auth == null || isExpired(auth)) {
+        if (!isLoggedIn()) {
             this.activity.fab.hide();
             Toast.makeText(this.activity, "Please login!", Toast.LENGTH_LONG).show();
             switchToLoginFragment();
@@ -135,9 +135,22 @@ public class LoginHandler implements LoginFragment.OnLoginListener, GoogleApiCli
         }
     }
 
+    public static boolean isLoggedIn() {
+        Firebase firebase = new Firebase(Constants.FIREBASE_URL);
+        AuthData auth = firebase.getAuth();
+        return auth != null && !isExpired(auth);
+    }
 
-    public boolean isExpired(AuthData authData) {
+
+    private static boolean isExpired(AuthData authData) {
         return (System.currentTimeMillis() / 1000) >= authData.getExpires();
+    }
+
+    public static String getAuthUid() {
+        AuthData authData = new Firebase(Constants.FIREBASE_URL).getAuth();
+        if (authData != null)
+            return authData.getUid();
+        return null;
     }
 
     public void switchToLoginFragment() {
@@ -153,7 +166,7 @@ public class LoginHandler implements LoginFragment.OnLoginListener, GoogleApiCli
         this.activity.navigationView.getMenu().getItem(0).setChecked(true);
         FragmentTransaction fragmentTransaction = this.activity.getFragmentManager()
                 .beginTransaction();
-        Fragment unlockFragment = UnlockFragment.newInstance(repoUrl);
+        Fragment unlockFragment = MainFragment.newInstance(repoUrl);
         fragmentTransaction.replace(R.id.content_frame, unlockFragment, "Main");
         fragmentTransaction.commit();
     }

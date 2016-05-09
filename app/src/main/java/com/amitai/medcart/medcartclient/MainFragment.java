@@ -1,17 +1,13 @@
 package com.amitai.medcart.medcartclient;
 
-import android.app.Activity;
 import android.app.Fragment;
 import android.content.Context;
-import android.content.Intent;
 import android.net.Uri;
-import android.nfc.NfcAdapter;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ListView;
-import android.widget.SimpleAdapter;
 import android.widget.TextView;
 
 import java.util.List;
@@ -21,12 +17,12 @@ import java.util.Map;
 /**
  * A simple {@link Fragment} subclass.
  * Activities that contain this fragment must implement the
- * {@link UnlockFragment.OnFragmentInteractionListener} interface
+ * {@link MainFragment.OnFragmentInteractionListener} interface
  * to handle interaction events.
- * Use the {@link UnlockFragment#newInstance} factory method to
+ * Use the {@link MainFragment#newInstance} factory method to
  * create an instance of this fragment.
  */
-public class UnlockFragment extends Fragment {
+public class MainFragment extends Fragment {
     // TODO: Rename parameter arguments, choose names that match
     // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
 //    private static final String ARG_PARAM1 = "param1";
@@ -38,16 +34,14 @@ public class UnlockFragment extends Fragment {
     //LIST OF ARRAY STRINGS WHICH WILL SERVE AS LIST ITEMS.
     List<Map<String, String>> listData;
     //DEFINING A STRING ADAPTER WHICH WILL HANDLE THE DATA OF THE LISTVIEW.
-    SimpleAdapter adapter;
     String repoUrl;
-    private NfcAdapter mAdapter;
     // TODO: Rename and change types of parameters
 //    private String mParam1;
     private OnFragmentInteractionListener mListener;
     private TextView mainText;
 
 
-    public UnlockFragment() {
+    public MainFragment() {
         // Required empty public constructor
     }
 
@@ -56,11 +50,11 @@ public class UnlockFragment extends Fragment {
      * this fragment using the provided parameters.
      *
      * @param repoUrl this specific user UID Firebase URL.
-     * @return A new instance of fragment UnlockFragment.
+     * @return A new instance of fragment MainFragment.
      */
     // TODO: Rename and change types and number of parameters
-    public static UnlockFragment newInstance(String repoUrl) {
-        UnlockFragment fragment = new UnlockFragment();
+    public static MainFragment newInstance(String repoUrl) {
+        MainFragment fragment = new MainFragment();
         Bundle args = new Bundle();
         args.putString(Constants.FIREBASE, repoUrl);
         fragment.setArguments(args);
@@ -78,20 +72,7 @@ public class UnlockFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-        Intent intent = getActivity().getIntent();
 
-        if (NfcAdapter.ACTION_TECH_DISCOVERED.equals(intent.getAction()) && ((MainActivity)
-                getActivity())
-                .enableAllComponents()) {
-
-            mainText.setText(NFC.getTagUID(intent));
-
-            UnlockService.startActionUnlockUsingNFC(getActivity(), NFC
-                    .ByteArrayToStringDisplayFormat(intent
-                            .getByteArrayExtra(NfcAdapter.EXTRA_ID)), getArguments().getString
-                    (Constants
-                    .FIREBASE));
-        }
     }
 
     /**
