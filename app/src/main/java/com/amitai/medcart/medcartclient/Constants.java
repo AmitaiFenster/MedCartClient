@@ -13,5 +13,14 @@ public class Constants {
     public static final String TAG_MainActivity = "MedCart.MainActivity";
     public static final String TAG_LoginHandler = "MedCart.LoginHandler";
     public static final String TAG_UnlockService = "UnlockService";
+    /**
+     * Use this action to run unlock service using NFC Tag UID.
+     */
+    public static final String ACTION_UNLOCK_USING_NFC = "com.amitai.medcart.medcartclient" +
+            ".action.UNLOCK_USING_NFC";
+    /**
+     * Extra data to include when running unlock service using NFC Tag UID.
+     */
+    public static final String EXTRA_NFC_UID = "com.amitai.medcart.medcartclient.extra.NFC_UID";
 
 }

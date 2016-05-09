@@ -1,5 +1,6 @@
 package com.amitai.medcart.medcartclient;
 
+import android.app.Activity;
 import android.app.Fragment;
 import android.content.Context;
 import android.content.Intent;
@@ -78,13 +79,17 @@ public class UnlockFragment extends Fragment {
     public void onResume() {
         super.onResume();
         Intent intent = getActivity().getIntent();
+
         if (NfcAdapter.ACTION_TECH_DISCOVERED.equals(intent.getAction()) && ((MainActivity)
                 getActivity())
                 .enableAllComponents()) {
+
             mainText.setText(NFC.getTagUID(intent));
-            UnlockService.startActionUnlockUsingNFC(getContext(), NFC
+
+            UnlockService.startActionUnlockUsingNFC(getActivity(), NFC
                     .ByteArrayToStringDisplayFormat(intent
-                    .getByteArrayExtra(NfcAdapter.EXTRA_ID)), getArguments().getString(Constants
+                            .getByteArrayExtra(NfcAdapter.EXTRA_ID)), getArguments().getString
+                    (Constants
                     .FIREBASE));
         }
     }

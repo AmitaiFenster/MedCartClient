@@ -1,6 +1,6 @@
 package com.amitai.medcart.medcartclient;
 
-import android.app.IntentService;
+import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
@@ -27,37 +27,18 @@ import com.firebase.client.ValueEventListener;
 import java.util.Timer;
 import java.util.TimerTask;
 
-/**
- * An {@link IntentService} subclass for handling asynchronous task requests in
- * a service on a separate handler thread.
- * <p/>
- * TODO: Customize class - update intent actions and extra parameters.
- */
-public class UnlockService extends IntentService /*implements BluetoothAdapter.LeScanCallback*/ {
-    // TODO: Rename actions, choose action names that describe tasks that this
-    // IntentService can perform, e.g. ACTION_FETCH_NEW_ITEMS
+public class UnlockService extends Service {
 
-    /**
-     * Use this action to unlock using NFC Tag UID.
-     */
-    private static final String ACTION_UNLOCK_USING_NFC = "com.amitai.medcart.medcartclient" +
-            ".action.UNLOCK_USING_NFC";
-    // TODO: Rename parameters and remove or add extra parameters.
-    private static final String EXTRA_NFC_UID = "com.amitai.medcart.medcartclient.extra.NFC_UID";
-    //    private static final String ACTION_BAZ = "com.amitai.medcart.medcartclient.action.BAZ";
-    private static final String EXTRA_PARAM2 = "com.amitai.medcart.medcartclient.extra.PARAM2";
+
     // Stops scanning after 10 seconds.
     private static final long SCAN_PERIOD = 10000;
-    private static final String DEVICE_NAME = "ZL-RC02D";
+    //    private static final String DEVICE_NAME = "ZL-RC02D";
     BluetoothDevice mDevice;
     private Firebase mFirebasePermissions;
     private BluetoothManager bluetoothManager;
     private BluetoothAdapter mBluetoothAdapter;
     private BluetoothLeScanner mBluetoothLeScanner;
     private String defaultBT = "";
-    // TODO: 5/8/2016  use Firebase instead of SharedPreferences, and handle Bluetooth devices
-    // passwords better.
-//    private SharedPreferences share;
     private TimerTask task2;
     private Timer timer2;
     private TimerTask task1;
@@ -68,9 +49,11 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
     //Close the relay after opened
     private TimerTask task4;
     private Timer timer4;
+    //Run stopSelf() to end service.
+    private TimerTask task5;
+    private Timer timer5;
 
-    private int button3flag = 0;
-    //    private SparseArray<BluetoothDevice> mDevices;
+    private int relayStateFlag = 0;
     private boolean mConnected = false; //Is GATT established.
     private boolean isBTConnected = false;  //Is Bluetooth connected.
     private final BroadcastReceiver mGattUpdateReceiver = new BroadcastReceiver() {
@@ -154,23 +137,23 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
     };
     private Handler mHandler = new Handler();
 
+
     public UnlockService() {
-        super("UnlockService");
     }
 
     /**
      * Starts this service to perform action UnlockUsingNFC with the given parameters. If
      * the service is already performing a task this action will be queued.
      *
-     * @param NFC_UID NFC tag UID.
-     * @see IntentService
+     * @param context
+     * @param NFC_UID     NFC tag UID.
+     * @param firebaseUrl
      */
-    // TODO: Customize helper method
     public static void startActionUnlockUsingNFC(Context context, String NFC_UID, String
             firebaseUrl) {
         Intent intent = new Intent(context, UnlockService.class);
-        intent.setAction(ACTION_UNLOCK_USING_NFC);
-        intent.putExtra(EXTRA_NFC_UID, NFC_UID);
+        intent.setAction(Constants.ACTION_UNLOCK_USING_NFC);
+        intent.putExtra(Constants.EXTRA_NFC_UID, NFC_UID);
         intent.putExtra(Constants.FIREBASE, firebaseUrl);
         context.startService(intent);
     }
@@ -186,42 +169,18 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
     }
 
     @Override
-    public void onDestroy() {
-        unregisterReceiver(mGattUpdateReceiver);
-//        getApplicationContext().unbindService(mServiceConnection);
-//        if (mBluetoothLeService != null) {
-//            mBluetoothLeService.close();
-//            mBluetoothLeService = null;
-//        }
-        Log.d(Constants.TAG_UnlockService, "We are in destroy");
-
-        super.onDestroy();
+    public IBinder onBind(Intent intent) {
+        // TODO: Return the communication channel to the service.
+        throw new UnsupportedOperationException("Not yet implemented");
     }
-
-
-//    /**
-//     * Starts this service to perform action Baz with the given parameters. If
-//     * the service is already performing a task this action will be queued.
-//     *
-//     * @see IntentService
-//     */
-//    // TODO: Customize helper method
-//    public static void startActionBaz(Context context, String param1, String param2) {
-//        Intent intent = new Intent(context, UnlockService.class);
-//        intent.setAction(ACTION_BAZ);
-//        intent.putExtra(EXTRA_PARAM1, param1);
-//        intent.putExtra(EXTRA_PARAM2, param2);
-//        context.startService(intent);
-//    }
 
     @Override
     public void onCreate() {
         super.onCreate();
 
-//        Intent gattServiceIntent = new Intent(getApplicationContext(), BluetoothLeService.class);
+        //        Intent gattServiceIntent = new Intent(getApplicationContext(),
+        // BluetoothLeService.class);
         Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
-        // TODO: 5/8/2016 Check why bind service returns false, and why the is a error logged
-        // that UnlockService has leaked ServiceConnection.
         Log.d(Constants.TAG_UnlockService, "Try to bindService=" + getApplicationContext()
                 .bindService
                         (gattServiceIntent,
@@ -231,7 +190,18 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
     }
 
     @Override
-    protected void onHandleIntent(Intent intent) {
+    public int onStartCommand(Intent intent, int flags, int startId) {
+
+        //Run stopSelf() to end service.
+        task5 = new TimerTask() {
+            @Override
+            public void run() {
+                stopSelf();
+            }
+        };
+        timer5 = new Timer();
+        timer5.schedule(task5, 20000);
+
         if (intent != null) {
             bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
             mBluetoothAdapter = bluetoothManager.getAdapter();
@@ -242,45 +212,37 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
             }
 
             final String action = intent.getAction();
-            if (ACTION_UNLOCK_USING_NFC.equals(action)) {
-                final String NFC_UID = intent.getStringExtra(EXTRA_NFC_UID);
+            if (Constants.ACTION_UNLOCK_USING_NFC.equals(action)) {
+                final String NFC_UID = intent.getStringExtra(Constants.EXTRA_NFC_UID);
                 final String firebaseUrl = intent.getStringExtra(Constants.FIREBASE);
                 mFirebasePermissions = new Firebase(firebaseUrl);
                 handleActionUnlockUsingNFC(NFC_UID, mFirebasePermissions);
             }
-//            } else if (ACTION_BAZ.equals(action)) {
-//                final String param1 = intent.getStringExtra(EXTRA_PARAM1);
-//                final String param2 = intent.getStringExtra(EXTRA_PARAM2);
-//                handleActionBaz(param1, param2);
-//            }
         }
+
+        return super.onStartCommand(intent, flags, startId);
     }
 
-    private void connectBLE(String bluetoothAddreess) {
-        deviceAddress = bluetoothAddreess;
-        scanLeDevice(true);
+    @Override
+    public void onDestroy() {
+        unregisterReceiver(mGattUpdateReceiver);
+        getApplicationContext().unbindService(mServiceConnection);
+        if (mBluetoothLeService != null) {
+            mBluetoothLeService.close();
+            mBluetoothLeService = null;
+        }
+        super.onDestroy();
     }
-
-//    /**
-//     * Handle action Baz in the provided background thread with the provided
-//     * parameters.
-//     */
-//    private void handleActionBaz(String param1, String param2) {
-//        // TODO: Handle action Baz
-//        throw new UnsupportedOperationException("Not yet implemented");
-//    }
 
     /**
-     * Handle action UnlockUsingNFC in the provided background thread with the provided
-     * parameters.
+     * Handle action UnlockUsingNFC, including checking for permission from the Firebase
+     * database, and unlocking the Bluetooth LE relay.
      *
-     * @param NFC_UID  of the NFC tag.
-     * @param firebase pointing to the user.
+     * @param NFC_UID  NFC Tag UID corresponding to the Bluetooth LE relay device (lock) that is
+     *                 targeted to open.
+     * @param firebase Firebase instance with a link to the users data on the Firebase database.
      */
-    // TODO: 4/22/2016 Edit function to recive the BLE address from the server database.
     private void handleActionUnlockUsingNFC(final String NFC_UID, Firebase firebase) {
-        Firebase firebaseMain = new Firebase(Constants.FIREBASE_URL);
-
         firebase = firebase.child("authorization");
         firebase.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
@@ -296,7 +258,6 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
                         DataSnapshot correspondingRelay = null;
 
                         for (DataSnapshot relay : relays) {
-                            String a = relay.child("NFCuid").getValue(String.class);
                             if (relay.child("NFCuid").getValue(String.class).equals(NFC_UID)) {
                                 String relayName = relay.getKey();
 
@@ -332,6 +293,11 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
         });
     }
 
+    private void connectBLE(String bluetoothAddreess) {
+        deviceAddress = bluetoothAddreess;
+        scanLeDevice(true);
+    }
+
     /**
      * Starts and stops Bluetooth LE scanning for BLE devices.
      *
@@ -345,6 +311,9 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
                 public void run() {
                     if (mScanning) {
                         BleScan(false);
+                        Toast.makeText(UnlockService.this, "Cannot find the lock",
+                                Toast.LENGTH_SHORT).show();
+                        stopSelf();
                     }
                 }
             }, SCAN_PERIOD);
@@ -476,7 +445,11 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
                     timer1.schedule(task1, 1000);
                     timer3 = new Timer();
                     timer3.schedule(task3, 2000);
+                    timer4 = new Timer();
+                    timer4.schedule(task4, 4000);
                 }
+                timer5 = new Timer();
+                timer5.schedule(task5, 6000);
             }
         };
         timer2 = new Timer();
@@ -490,7 +463,6 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
 //        }
     }
 
-
     public void switchRelay() {
         if (!isBTConnected) {
             Toast.makeText(this, "Bluetooth is not connected, first check equipment", Toast
@@ -500,12 +472,12 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
         }
 //        defaultBT = share.getString("defaultBT", "12345678");
         defaultBT = "12345678";
-        if (button3flag == 0) {
+        if (relayStateFlag == 0) {
             //1 open road
             byte[] data = {(byte) 0xC5, (byte) 0x04, (byte) 0x99, (byte) 0x99, (byte)
                     0x99, (byte) 0x99, (byte) 0x99, (byte) 0x99, (byte) 0x99, (byte)
                     0x99, (byte) 0xAA};
-            button3flag = 1;
+            relayStateFlag = 1;
             if (defaultBT.length() < 8) {
                 Toast.makeText(this, "Please set the correct password in the settings 8",
                         Toast.LENGTH_SHORT).show();
@@ -527,7 +499,7 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
             byte[] data = {(byte) 0xC5, (byte) 0x06, (byte) 0x99, (byte) 0x99, (byte)
                     0x99, (byte) 0x99, (byte) 0x99, (byte) 0x99, (byte) 0x99, (byte)
                     0x99, (byte) 0xAA};
-            button3flag = 0;
+            relayStateFlag = 0;
             if (defaultBT.length() < 8) {
                 Toast.makeText(this, "Please set the correct password in the settings 8",
                         Toast.LENGTH_SHORT).show();
@@ -546,8 +518,5 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
         }
     }
 
-    @Override
-    public boolean onUnbind(Intent intent) {
-        return super.onUnbind(intent);
-    }
+
 }
