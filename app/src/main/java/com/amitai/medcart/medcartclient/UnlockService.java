@@ -13,7 +13,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
-import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
@@ -50,20 +49,26 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
     // Stops scanning after 10 seconds.
     private static final long SCAN_PERIOD = 10000;
     private static final String DEVICE_NAME = "ZL-RC02D";
-    BLEScanConnect BLEConnection;
     BluetoothDevice mDevice;
     private Firebase mFirebasePermissions;
     private BluetoothManager bluetoothManager;
     private BluetoothAdapter mBluetoothAdapter;
     private BluetoothLeScanner mBluetoothLeScanner;
     private String defaultBT = "";
-    private SharedPreferences share;
+    // TODO: 5/8/2016  use Firebase instead of SharedPreferences, and handle Bluetooth devices
+    // passwords better.
+//    private SharedPreferences share;
     private TimerTask task2;
     private Timer timer2;
     private TimerTask task1;
     private Timer timer1;
     private TimerTask task3;
     private Timer timer3;
+
+    //Close the relay after opened
+    private TimerTask task4;
+    private Timer timer4;
+
     private int button3flag = 0;
     //    private SparseArray<BluetoothDevice> mDevices;
     private boolean mConnected = false; //Is GATT established.
@@ -138,7 +143,7 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
             )) {
                 mDevice = device;
                 BleScan(false);
-//                connectBluetoothDevice();
+                connectBluetoothDevice();
             }
         }
 
@@ -183,6 +188,13 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
     @Override
     public void onDestroy() {
         unregisterReceiver(mGattUpdateReceiver);
+//        getApplicationContext().unbindService(mServiceConnection);
+//        if (mBluetoothLeService != null) {
+//            mBluetoothLeService.close();
+//            mBluetoothLeService = null;
+//        }
+        Log.d(Constants.TAG_UnlockService, "We are in destroy");
+
         super.onDestroy();
     }
 
@@ -206,13 +218,15 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
     public void onCreate() {
         super.onCreate();
 
+//        Intent gattServiceIntent = new Intent(getApplicationContext(), BluetoothLeService.class);
         Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
         // TODO: 5/8/2016 Check why bind service returns false, and why the is a error logged
         // that UnlockService has leaked ServiceConnection.
-        Log.d(Constants.TAG_UnlockService, "Try to bindService=" + this.bindService
-                (gattServiceIntent,
-                        mServiceConnection,
-                        Context.BIND_AUTO_CREATE));
+        Log.d(Constants.TAG_UnlockService, "Try to bindService=" + getApplicationContext()
+                .bindService
+                        (gattServiceIntent,
+                                mServiceConnection,
+                                Context.BIND_AUTO_CREATE));
         registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
     }
 
@@ -299,8 +313,8 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
                         }
                         Toast.makeText(UnlockService.this, "Permission: " + isAuthorized, Toast
                                 .LENGTH_LONG).show();
-//                        if (isAuthorized)
-//                            connectBLE(correspondingRelay.child("BLEuid").getValue(String.class));
+                        if (isAuthorized)
+                            connectBLE(correspondingRelay.child("BLEuid").getValue(String.class));
                     }
 
                     @Override
@@ -352,6 +366,7 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
         } else {
             mScanning = false;
             mBluetoothLeScanner.stopScan(mScanCallback);
+            Log.i(Constants.TAG_UnlockService, "Stopped LE scan");
         }
     }
 
@@ -401,7 +416,7 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
                         }
 
                         mBluetoothLeService.connect(mDeviceAddress);
-//					devicename.setText("连接失败,请等待重新连接");
+//					devicename.setText("Connection fails, wait reconnect");
                         break;
 
                     case 3:
@@ -428,6 +443,25 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
             }
         };
 
+        task3 = new TimerTask() {
+            @Override
+            public void run() {
+                Message message = new Message();
+                message.what = 3;
+                handler.sendMessage(message);
+            }
+        };
+
+        //Close the relay after opened
+        task4 = new TimerTask() {
+            @Override
+            public void run() {
+                Message message = new Message();
+                message.what = 1;
+                handler.sendMessage(message);
+            }
+        };
+
         task2 = new TimerTask() {
             @Override
             public void run() {
@@ -435,6 +469,8 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
                     Message message = new Message();
                     message.what = 1;
                     handler.sendMessage(message);
+                    timer4 = new Timer();
+                    timer4.schedule(task4, 2000);
                 } else {
                     timer1 = new Timer();
                     timer1.schedule(task1, 1000);
@@ -446,26 +482,26 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
         timer2 = new Timer();
         timer2.schedule(task2, 800);
 
-        task3 = new TimerTask() {
-            @Override
-            public void run() {
-                Message message = new Message();
-                message.what = 3;
-                handler.sendMessage(message);
-            }
-        };
+//        unregisterReceiver(mGattUpdateReceiver);
+//        getApplicationContext().unbindService(mServiceConnection);
+//        if (mBluetoothLeService != null) {
+//            mBluetoothLeService.close();
+//            mBluetoothLeService = null;
+//        }
     }
 
 
     public void switchRelay() {
         if (!isBTConnected) {
-            Toast.makeText(this, "蓝牙没有连接，请先检查设备", Toast.LENGTH_SHORT)
+            Toast.makeText(this, "Bluetooth is not connected, first check equipment", Toast
+                    .LENGTH_SHORT)
                     .show();
             return;
         }
-        defaultBT = share.getString("defaultBT", "12345678");
+//        defaultBT = share.getString("defaultBT", "12345678");
+        defaultBT = "12345678";
         if (button3flag == 0) {
-            //1路开
+            //1 open road
             byte[] data = {(byte) 0xC5, (byte) 0x04, (byte) 0x99, (byte) 0x99, (byte)
                     0x99, (byte) 0x99, (byte) 0x99, (byte) 0x99, (byte) 0x99, (byte)
                     0x99, (byte) 0xAA};
@@ -487,7 +523,7 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
             //startbutton3.setBackgroundResource(R.drawable.ii);
 
         } else {
-            //1路关
+            //1 off road
             byte[] data = {(byte) 0xC5, (byte) 0x06, (byte) 0x99, (byte) 0x99, (byte)
                     0x99, (byte) 0x99, (byte) 0x99, (byte) 0x99, (byte) 0x99, (byte)
                     0x99, (byte) 0xAA};
@@ -510,5 +546,8 @@ public class UnlockService extends IntentService /*implements BluetoothAdapter.L
         }
     }
 
-
+    @Override
+    public boolean onUnbind(Intent intent) {
+        return super.onUnbind(intent);
+    }
 }

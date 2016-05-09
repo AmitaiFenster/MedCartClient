@@ -187,8 +187,8 @@ public class MainActivity extends AppCompatActivity
         } else if (!nfcAdapter.isEnabled()) {
             showWirelessSettingsDialog();
         } else {
-            Toast.makeText(MainActivity.this, "NFC available", Toast.LENGTH_LONG)
-                    .show();
+//            Toast.makeText(MainActivity.this, "NFC available", Toast.LENGTH_LONG)
+//                    .show();
             return true;
         }
         return false;
