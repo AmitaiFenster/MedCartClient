@@ -147,7 +147,7 @@ public class UnlockService extends Service {
      * Starts this service to perform action UnlockUsingNFC with the given parameters. If
      * the service is already performing a task this action will be queued.
      *
-     * @param context the context that started this service.
+     * @param context     the context that started this service.
      * @param NFC_UID     NFC tag UID.
      * @param firebaseUrl Firebase URL of pointing to the user data on the Firebase database.
      */
@@ -245,63 +245,94 @@ public class UnlockService extends Service {
      * @param firebase Firebase instance with a link to the users data on the Firebase database.
      */
     private void handleActionUnlockUsingNFC(final String NFC_UID, Firebase firebase) {
-        firebase = firebase.child("authorization");
-        firebase.addListenerForSingleValueEvent(new ValueEventListener() {
+        Firebase firebaseRelay = new Firebase(Constants.FIREBASE_URL + "relays/" + NFC_UID);
+        firebaseRelay.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
-                final Iterable<DataSnapshot> authorizationSnapshots = dataSnapshot.getChildren();
-                Firebase firebaseRelays = new Firebase(Constants.FIREBASE_URL + "relays");
-
-                firebaseRelays.addListenerForSingleValueEvent(new ValueEventListener() {
-                    @Override
-                    public void onDataChange(DataSnapshot dataSnapshot) {
-                        Iterable<DataSnapshot> relays = dataSnapshot.getChildren();
-                        boolean isAuthorized = false;
-                        DataSnapshot correspondingRelay = null;
-
-                        for (DataSnapshot relay : relays) {
-                            if (relay.child("NFCuid").getValue(String.class).equals(NFC_UID)) {
-                                String relayName = relay.getKey();
-
-                                for (DataSnapshot authorizationSnap : authorizationSnapshots) {
-                                    if (authorizationSnap.getValue(Boolean.class) &&
-                                            authorizationSnap.getKey().equals(relayName)) {
-                                        isAuthorized = true;
-                                        correspondingRelay = relay;
-                                        break;
-                                    }
-                                }
-                                break;
-                            }
-                        }
-                        Toast.makeText(UnlockService.this, "Permission: " + isAuthorized, Toast
-                                .LENGTH_LONG).show();
-                        if (isAuthorized)
-                            connectBLE(correspondingRelay.child("BLEuid").getValue(String.class),
-                                    (int) ((double) correspondingRelay.child("BLERelayNum").getValue
-                                            (Double.class)));
-                        else
-                            stopSelf();
-                    }
-
-                    @Override
-                    public void onCancelled(FirebaseError firebaseError) {
-
-                    }
-                });
-
+                if (dataSnapshot.exists())
+                    connectBLE(dataSnapshot.child("BLEuid").getValue(String.class),
+                            (int) ((double) dataSnapshot.child("BLERelayNum").getValue
+                                    (Double.class)), dataSnapshot.child("password")
+                                    .getValue(String.class));
+                else
+                    notAuthorized();
             }
 
             @Override
             public void onCancelled(FirebaseError firebaseError) {
-
+                notAuthorized();
             }
         });
+
+//        firebase = firebase.child("authorization");
+//        firebase.addListenerForSingleValueEvent(new ValueEventListener() {
+//            @Override
+//            public void onDataChange(DataSnapshot dataSnapshot) {
+//                final Iterable<DataSnapshot> authorizationSnapshots = dataSnapshot.getChildren();
+//                Firebase firebaseRelays = new Firebase(Constants.FIREBASE_URL + "relays");
+//
+//                firebaseRelays.addListenerForSingleValueEvent(new ValueEventListener() {
+//                    @Override
+//                    public void onDataChange(DataSnapshot dataSnapshot) {
+//                        Iterable<DataSnapshot> relays = dataSnapshot.getChildren();
+//                        boolean isAuthorized = false;
+//                        DataSnapshot correspondingRelay = null;
+//
+//                        for (DataSnapshot relay : relays) {
+//                            if (relay.child("NFCuid").getValue(String.class).equals(NFC_UID)) {
+//                                String relayName = relay.getKey();
+//
+//                                for (DataSnapshot authorizationSnap : authorizationSnapshots) {
+//                                    if (authorizationSnap.getValue(Boolean.class) &&
+//                                            authorizationSnap.getKey().equals(relayName)) {
+//                                        isAuthorized = true;
+//                                        correspondingRelay = relay;
+//                                        break;
+//                                    }
+//                                }
+//                                break;
+//                            }
+//                        }
+//                        if (isAuthorized)
+//                            connectBLE(correspondingRelay.child("BLEuid").getValue(String.class),
+//                                    (int) ((double) correspondingRelay.child("BLERelayNum")
+// .getValue
+//                                            (Double.class)));
+//                        else {
+//                            notAuthorized();
+//                        }
+//                    }
+//
+//                    @Override
+//                    public void onCancelled(FirebaseError firebaseError) {
+//                        notAuthorized();
+//                    }
+//                });
+//
+//            }
+//
+//            @Override
+//            public void onCancelled(FirebaseError firebaseError) {
+//                Toast.makeText(UnlockService.this, "You are not authorized!", Toast
+//                        .LENGTH_LONG).show();
+//            }
+//        });
     }
 
-    private void connectBLE(String bluetoothAddreess, int relayNum) {
+    /**
+     * When not authorized call this method, which shows a toast to the user "You are not
+     * authorized!" and stops the service.
+     */
+    private void notAuthorized() {
+        Toast.makeText(UnlockService.this, "You are not authorized!", Toast
+                .LENGTH_LONG).show();
+        stopSelf();
+    }
+
+    private void connectBLE(String bluetoothAddreess, int relayNum, String password) {
         this.targetRelayNum = relayNum;
         this.deviceAddress = bluetoothAddreess;
+        this.btPassword = password;
         scanLeDevice(true);
     }
 
@@ -484,9 +515,6 @@ public class UnlockService extends Service {
                     .show();
             return;
         }
-        // TODO: 5/9/2016 Get name and password of the Bluetooth LE relay device from Firebase.
-//        btPassword = share.getString("defaultBT", "12345678");
-        btPassword = "12345678";
 
         if (btPassword.length() < 8) {
             Toast.makeText(this, "Please set the correct password",

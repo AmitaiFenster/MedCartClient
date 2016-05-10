@@ -189,13 +189,14 @@ public class LoginHandler implements LoginFragment.OnLoginListener, GoogleApiCli
         @Override
         public void onAuthenticated(AuthData authData) {
 
-            final Firebase ref = new Firebase(Constants.FIREBASE_URL + "/users/");
+            final Firebase ref = new Firebase(Constants.FIREBASE_URL + "/users/" + authData
+                    .getUid());
             final AuthData authDataFinal = authData;
 
             ref.addListenerForSingleValueEvent(new ValueEventListener() {
                 @Override
                 public void onDataChange(DataSnapshot snapshot) {
-                    if (!snapshot.hasChild(authDataFinal.getUid())) {
+                    if (!snapshot.exists()) {
                         Map<String, String> map = new HashMap<String, String>();
                         map.put("email", (String) authDataFinal.getProviderData().get("email"));
                         map.put("provider", authDataFinal.getProvider());
@@ -205,12 +206,14 @@ public class LoginHandler implements LoginFragment.OnLoginListener, GoogleApiCli
                                     ("displayName")
                                     .toString());
                         }
-                        ref.child(authDataFinal.getUid()).setValue(map);
+                        ref.setValue(map);
                     }
                 }
 
                 @Override
                 public void onCancelled(FirebaseError firebaseError) {
+                    Toast.makeText(activity, "cannot log your information", Toast.LENGTH_LONG)
+                            .show();
                 }
             });
 
