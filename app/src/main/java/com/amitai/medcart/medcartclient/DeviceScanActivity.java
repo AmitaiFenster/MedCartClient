@@ -78,7 +78,7 @@ public class DeviceScanActivity extends ListActivity {
 
         mHandler = new Handler();
 //        this.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        setContentView(R.layout.activity_device_scan_temp);
+        setContentView(R.layout.activity_device_scan);
 
         buttonScan = (Button) findViewById(R.id.buttonscan);
 
