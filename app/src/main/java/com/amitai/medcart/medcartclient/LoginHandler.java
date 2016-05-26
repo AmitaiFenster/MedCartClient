@@ -143,8 +143,6 @@ public class LoginHandler {
                 .addOnCompleteListener(new OnCompleteListener<Void>() {
                     public void onComplete(@NonNull Task<Void> task) {
                         // user is now signed out
-//                        startActivity(new Intent(MyActivity.this, SignInActivity.class));
-//                        finish();
                         switchToLogin();
                     }
                 });
@@ -191,10 +189,6 @@ public class LoginHandler {
                 .findViewById(R.id.nav_header_displayName);
         nav_header_displayName.setText(firebaseUser.getProviderData().get(0).getDisplayName());
 
-//            if (authDataFinal.getProviderData().containsKey("displayName")) {
-//                nav_header_displayName.setText(authDataFinal.getProviderData().get("displayName")
-//                        .toString());
-//            }
         ImageView profileImage = (ImageView) activity.navigationView.getHeaderView(0)
                 .findViewById(R.id.nav_header_imageView);
         if (firebaseUser.getProviderData().get(0).getPhotoUrl() != null) {
