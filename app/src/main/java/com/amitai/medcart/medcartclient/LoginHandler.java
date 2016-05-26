@@ -4,232 +4,207 @@ import android.app.Activity;
 import android.app.Fragment;
 import android.app.FragmentTransaction;
 import android.content.Intent;
-import android.os.AsyncTask;
+import android.net.Uri;
+import android.support.annotation.NonNull;
 import android.util.Log;
+import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
-import com.firebase.client.AuthData;
-import com.firebase.client.DataSnapshot;
-import com.firebase.client.Firebase;
-import com.firebase.client.FirebaseError;
-import com.firebase.client.ValueEventListener;
-import com.google.android.gms.auth.GoogleAuthException;
-import com.google.android.gms.auth.GoogleAuthUtil;
-import com.google.android.gms.auth.UserRecoverableAuthException;
-import com.google.android.gms.auth.api.Auth;
-import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
-import com.google.android.gms.auth.api.signin.GoogleSignInResult;
-import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.api.GoogleApiClient;
+import com.firebase.ui.auth.AuthUI;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+import com.squareup.picasso.Picasso;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
  * Created by amita on 5/5/2016.
  */
-public class LoginHandler implements LoginFragment.OnLoginListener, GoogleApiClient
-        .OnConnectionFailedListener {
+public class LoginHandler {
 
+    private static final int RC_SIGN_IN = 100;
     MainActivity activity;
-    private GoogleSignInOptions gso;
-    private GoogleApiClient mGoogleApiClient;
+    private FirebaseAuth mAuth;
+    private FirebaseAuth.AuthStateListener mAuthListener;
 
     public LoginHandler(Activity activity) {
         try {
             this.activity = (MainActivity) activity;
+
         } catch (ClassCastException e) {
             throw new ClassCastException(activity.toString()
                     + " must implement MainActivity");
         }
-        this.mGoogleApiClient = this.activity.mGoogleApiClient;
-    }
-
-    @Override
-    public void onLogin(String email, String password) {
-        Firebase firebase = new Firebase(Constants.FIREBASE_URL);
-        firebase.authWithPassword(email, password, new MyAuthResultHandler());
-    }
-
-    @Override
-    public void onGoogleLogin() {
-        Intent intent = Auth.GoogleSignInApi.getSignInIntent(mGoogleApiClient);
-        activity.startActivityForResult(intent, Constants.REQUEST_CODE_GOOGLE_LOGIN);
-    }
-
-    public void activityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == Constants.REQUEST_CODE_GOOGLE_LOGIN) {
-            GoogleSignInResult result = Auth.GoogleSignInApi.getSignInResultFromIntent(data);
-            if (result.isSuccess()) {
-                GoogleSignInAccount account = result.getSignInAccount();
-                String emailAddress = account.getEmail();
-                getGoogleOAuthToken(emailAddress);
-
-            }
-        }
-    }
-
-    private void getGoogleOAuthToken(final String emailAddress) {
-        AsyncTask<Void, Void, String> task = new AsyncTask<Void, Void, String>() {
-            String errorMessage = null;
-
+        mAuth = FirebaseAuth.getInstance();
+        mAuthListener = new FirebaseAuth.AuthStateListener() {
             @Override
-            protected String doInBackground(Void... params) {
-                String token = null;
-                try {
-                    String scope = "oauth2:profile email";
-                    token = GoogleAuthUtil.getToken(activity, emailAddress, scope);
-                } catch (IOException transientEx) {
-                /* Network or server error */
-                    errorMessage = "Network error: " + transientEx.getMessage();
-                } catch (UserRecoverableAuthException e) {
-                /* We probably need to ask for permissions, so start the intent if there is none
-                pending */
-                    Intent recover = e.getIntent();
-                    activity.startActivityForResult(recover, Constants.REQUEST_CODE_GOOGLE_LOGIN);
-                } catch (GoogleAuthException authEx) {
-                    errorMessage = "Error authenticating with Google: " + authEx.getMessage();
-                }
-                return token;
-            }
-
-            @Override
-            protected void onPostExecute(String token) {
-                Log.d(Constants.TAG_LoginHandler, "onPostExecute, token: " + token);
-                if (token != null) {
-                    onGoogleLoginWithToken(token);
+            public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
+                FirebaseUser user = firebaseAuth.getCurrentUser();
+                if (user != null) {
+                    // User is signed in
+                    Log.d(Constants.TAG_LoginHandler, "onAuthStateChanged:signed_in:" + user
+                            .getUid());
                 } else {
-                    showLoginError(errorMessage);
+                    // User is signed out
+                    Log.d(Constants.TAG_LoginHandler, "onAuthStateChanged:signed_out");
                 }
             }
         };
-        task.execute();
+        mAuth.addAuthStateListener(mAuthListener);
     }
 
-    private void showLoginError(String errorMessage) {
-
+    public static boolean isLoggedIn() {
+        // TODO: 5/25/2016 add expiration!
+        return getFirebaseUser() != null /* && !isExpired(auth)*/;
     }
 
-    private void onGoogleLoginWithToken(String oAuthToken) {
-        Firebase firebase = new Firebase(Constants.FIREBASE_URL);
-        firebase.authWithOAuthToken("google", oAuthToken, new MyAuthResultHandler());
+    public static FirebaseUser getFirebaseUser() {
+        return FirebaseAuth.getInstance().getCurrentUser();
     }
 
+    // TODO: 5/25/2016 fix isExpired
+//    private static boolean isExpired(FirebaseAuth authData) {
+//        return (System.currentTimeMillis() / 1000) >= authData.getExpires();
+//    }
+
+    public static String getAuthUid() {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user != null)
+            return user.getUid();
+        return null;
+    }
+
+    public void activityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == RC_SIGN_IN) {
+            if (resultCode == this.activity.RESULT_OK) {
+                // user is signed in!
+                Log.d(Constants.TAG_LoginHandler, "Sign in result: RESULT_OK");
+                logUserInfo();
+                tryAccessMainFragment();
+//                finish();
+            } else {
+                Log.d(Constants.TAG_LoginHandler, "Sign in result: RESULT_CANCELLED");
+                // user is not signed in. Maybe just wait for the user to press
+                // "sign in" again, or show a message
+            }
+        }
+    }
 
     /**
      * This method tries to switch to main fragment if signed in. If not, the LoginFragment will
      * be shown.
      */
     public void tryAccessMainFragment() {
-        Firebase firebase = new Firebase(Constants.FIREBASE_URL);
-        AuthData auth = firebase.getAuth();
         if (!isLoggedIn()) {
-            this.activity.fab.hide();
+//            this.activity.fab.hide();
             Toast.makeText(this.activity, "Please login!", Toast.LENGTH_LONG).show();
-            switchToLoginFragment();
+            switchToLogin();
         } else {
-            this.activity.fab.show();
-            switchToMainFragment(Constants.FIREBASE_URL + "/users/" + auth.getUid());
+//            this.activity.fab.show();
+            switchToMainFragment(Constants.FIREBASE_URL + "/users/" + mAuth.getCurrentUser()
+                    .getUid());
         }
     }
 
-    public static boolean isLoggedIn() {
-        Firebase firebase = new Firebase(Constants.FIREBASE_URL);
-        AuthData auth = firebase.getAuth();
-        return auth != null && !isExpired(auth);
-    }
-
-
-    private static boolean isExpired(AuthData authData) {
-        return (System.currentTimeMillis() / 1000) >= authData.getExpires();
-    }
-
-    public static String getAuthUid() {
-        AuthData authData = new Firebase(Constants.FIREBASE_URL).getAuth();
-        if (authData != null)
-            return authData.getUid();
-        return null;
-    }
-
-    public void switchToLoginFragment() {
-        FragmentTransaction fragmentTransaction = this.activity.getFragmentManager()
-                .beginTransaction();
-        fragmentTransaction.replace(R.id.content_frame, new LoginFragment(), "Login");
-        fragmentTransaction.commit();
-        this.activity.navigationView.getMenu().getItem(1).setChecked(true);
+    public void switchToLogin() {
+        this.activity.startActivityForResult(
+                AuthUI.getInstance()
+                        .createSignInIntentBuilder()
+                        .setProviders(
+                                AuthUI.EMAIL_PROVIDER,
+                                AuthUI.GOOGLE_PROVIDER,
+                                AuthUI.FACEBOOK_PROVIDER)
+                        .build(),
+                RC_SIGN_IN);
     }
 
     private void switchToMainFragment(String repoUrl) {
         this.activity.setTitle(this.activity.getResources().getString(R.string.app_name2));
-        this.activity.navigationView.getMenu().getItem(0).setChecked(true);
+        this.activity.setNavigationViewChecked(0);
         FragmentTransaction fragmentTransaction = this.activity.getFragmentManager()
                 .beginTransaction();
-        Fragment unlockFragment = MainFragment.newInstance(repoUrl);
-        fragmentTransaction.replace(R.id.content_frame, unlockFragment, "Main");
+        Fragment mainFragment = MainFragment.newInstance(repoUrl);
+        fragmentTransaction.replace(R.id.content_frame, mainFragment, "Main");
         fragmentTransaction.commit();
     }
 
     public void logout() {
-        Firebase firebase = new Firebase(Constants.FIREBASE_URL);
-        firebase.unauth();
-        switchToLoginFragment();
-    }
-
-    @Override
-    public void onConnectionFailed(ConnectionResult connectionResult) {
-        Log.e(Constants.TAG_MainActivity, "onConnectionFaild: " + connectionResult
-                .getErrorMessage());
-    }
-
-
-    class MyAuthResultHandler implements Firebase.AuthResultHandler {
-
-        @Override
-        public void onAuthenticated(AuthData authData) {
-
-            final Firebase ref = new Firebase(Constants.FIREBASE_URL + "/users/" + authData
-                    .getUid());
-            final AuthData authDataFinal = authData;
-
-            ref.addListenerForSingleValueEvent(new ValueEventListener() {
-                @Override
-                public void onDataChange(DataSnapshot snapshot) {
-                    if (!snapshot.exists()) {
-                        Map<String, String> map = new HashMap<String, String>();
-                        map.put("email", (String) authDataFinal.getProviderData().get("email"));
-                        map.put("provider", authDataFinal.getProvider());
-                        map.put("level", "user");
-                        if (authDataFinal.getProviderData().containsKey("displayName")) {
-                            map.put("displayName", authDataFinal.getProviderData().get
-                                    ("displayName")
-                                    .toString());
-                        }
-                        ref.setValue(map);
+        AuthUI.getInstance()
+                .signOut(this.activity)
+                .addOnCompleteListener(new OnCompleteListener<Void>() {
+                    public void onComplete(@NonNull Task<Void> task) {
+                        // user is now signed out
+//                        startActivity(new Intent(MyActivity.this, SignInActivity.class));
+//                        finish();
+                        switchToLogin();
                     }
-                }
-
-                @Override
-                public void onCancelled(FirebaseError firebaseError) {
-                    Toast.makeText(activity, "cannot log your information", Toast.LENGTH_LONG)
-                            .show();
-                }
-            });
-
-            switchToMainFragment(Constants.FIREBASE_URL + "/users/" + authData.getUid());
-//            tryAccessMainFragment();
-        }
-
-        @Override
-        public void onAuthenticationError(FirebaseError firebaseError) {
-            Log.i(Constants.TAG_LoginHandler, "onAuthenticationError: " + firebaseError
-                    .getMessage());
-            switchToLoginFragment();
-            Toast.makeText(activity, "Email or password incorrect", Toast.LENGTH_LONG).show();
-
-        }
+                });
     }
 
+    private void logUserInfo() {
+        final DatabaseReference ref = FirebaseDatabase.getInstance().getReferenceFromUrl
+                (Constants.FIREBASE_URL + "/users/" + getAuthUid());
+        final FirebaseUser firebaseUser = mAuth.getCurrentUser();
+
+        ref.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot snapshot) {
+                if (!snapshot.exists()) {
+                    Map<String, String> map = new HashMap<String, String>();
+                    map.put("email", firebaseUser.getEmail());
+                    map.put("provider", firebaseUser.getProviderId());
+                    map.put("level", "user");
+//                        if (firebaseUser.getProviderData().containsKey("displayName")) {
+//                            map.put("displayName", firebaseUser.getProviderData().get
+//                                    ("displayName")
+//                                    .toString());
+//                        }
+                    map.put("displayName", firebaseUser.getProviderData().get(0)
+                            .getDisplayName());
+                    ref.setValue(map);
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+                Toast.makeText(activity, "cannot log your information", Toast.LENGTH_LONG)
+                        .show();
+            }
+        });
+        setupNavProfileInfo(firebaseUser);
+    }
+
+    public void setupNavProfileInfo(FirebaseUser firebaseUser) {
+        TextView nav_header_emailAddress = (TextView) activity.navigationView.getHeaderView(0)
+                .findViewById(R.id.nav_header_emailAddress);
+        nav_header_emailAddress.setText((String) firebaseUser.getEmail());
+        TextView nav_header_displayName = (TextView) activity.navigationView.getHeaderView(0)
+                .findViewById(R.id.nav_header_displayName);
+        nav_header_displayName.setText(firebaseUser.getProviderData().get(0).getDisplayName());
+
+//            if (authDataFinal.getProviderData().containsKey("displayName")) {
+//                nav_header_displayName.setText(authDataFinal.getProviderData().get("displayName")
+//                        .toString());
+//            }
+        ImageView profileImage = (ImageView) activity.navigationView.getHeaderView(0)
+                .findViewById(R.id.nav_header_imageView);
+        if (firebaseUser.getProviderData().get(0).getPhotoUrl() != null) {
+            Uri uri = firebaseUser.getProviderData().get(0).getPhotoUrl();
+            Picasso.with(this.activity).load(uri).into(profileImage);
+        } else {
+            profileImage.setImageDrawable(this.activity.getResources().getDrawable(android.R
+                    .drawable.sym_def_app_icon));
+        }
+
+    }
 
 }

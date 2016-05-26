@@ -15,10 +15,17 @@ import java.util.Map;
 public class NFC {
 
     /**
-     * @return Current Date and time.
+     * @return Current Date and time in a DateFormat Object.
      */
     public static DateFormat getDateTime() {
         return SimpleDateFormat.getDateTimeInstance();
+    }
+
+    /**
+     * @return Current Date and time in a String format.
+     */
+    public static String getDateTimeString() {
+        return getDateTime().format(new Date());
     }
 
     /**
@@ -32,7 +39,7 @@ public class NFC {
             String hexStringIDfinal = stringUIDDisplayFormat(hexStringID);
             Map<String, String> datum = new HashMap<String, String>(2);
             datum.put("title", hexStringIDfinal);
-            datum.put("date", getDateTime().format(new Date()));
+            datum.put("date", getDateTimeString());
             return datum.toString();
         }
         return "";

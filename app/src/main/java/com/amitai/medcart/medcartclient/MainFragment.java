@@ -67,6 +67,7 @@ public class MainFragment extends Fragment {
         if (getArguments() != null) {
             repoUrl = getArguments().getString(Constants.FIREBASE);
         }
+        getArguments();
     }
 
     @Override
@@ -86,7 +87,8 @@ public class MainFragment extends Fragment {
 //        mPendingIntent = PendingIntent.getActivity(this, 0,
 //                new Intent(this, getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), 0);
 //
-        mainText = (TextView) rootView.findViewById(R.id.unlockTextView);
+//        mainText = (TextView) rootView.findViewById(R.id.unlockTextView);
+
 //        myList = (ListView) getActivity().findViewById(R.id.unlockListView);
 //        listData = new ArrayList<Map<String, String>>();
 //        adapter = new SimpleAdapter(getActivity(), listData,
@@ -102,7 +104,7 @@ public class MainFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
-        rootView = inflater.inflate(R.layout.fragment_unlock, container, false);
+        rootView = inflater.inflate(R.layout.fragment_main, container, false);
         components();
         return rootView;
     }

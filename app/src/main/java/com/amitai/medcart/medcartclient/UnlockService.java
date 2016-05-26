@@ -19,10 +19,11 @@ import android.os.Message;
 import android.util.Log;
 import android.widget.Toast;
 
-import com.firebase.client.DataSnapshot;
-import com.firebase.client.Firebase;
-import com.firebase.client.FirebaseError;
-import com.firebase.client.ValueEventListener;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 
 import java.util.Timer;
 import java.util.TimerTask;
@@ -34,25 +35,23 @@ public class UnlockService extends Service {
     private static final long SCAN_PERIOD = 10000;
     //    private static final String DEVICE_NAME = "ZL-RC02D";
     BluetoothDevice mDevice;
-    private Firebase mFirebasePermissions;
+    private BluetoothDeviceHolder bluetoothDeviceHolder;
+    private DatabaseReference mFirebasePermissions;
     private BluetoothManager bluetoothManager;
     private BluetoothAdapter mBluetoothAdapter;
     private BluetoothLeScanner mBluetoothLeScanner;
-    private String btPassword = "";
     private TimerTask task2;
     private Timer timer2;
     private TimerTask task1;
     private Timer timer1;
     private TimerTask task3;
     private Timer timer3;
-
     //Close the relay after opened
     private TimerTask task4;
     private Timer timer4;
     //Run stopSelf() to end service.
     private TimerTask task5;
     private Timer timer5;
-
     private int relay1StateFlag = 0;
     private int relay2StateFlag = 0;
     private boolean mConnected = false; //Is GATT established.
@@ -86,7 +85,6 @@ public class UnlockService extends Service {
     /**
      * Address of device that what specified by the constructor to connect.
      */
-    private String deviceAddress;
     private BluetoothLeService mBluetoothLeService;
     private final ServiceConnection mServiceConnection = new ServiceConnection() {
 
@@ -109,24 +107,15 @@ public class UnlockService extends Service {
         }
     };
     private boolean mScanning;
-    private Handler mHandler = new Handler();
-    private int targetRelayNum;
     ScanCallback mScanCallback = new ScanCallback() {
         @Override
         public void onScanResult(int callbackType, ScanResult result) {
             BluetoothDevice device = result.getDevice();
-//            Log.i(Constants.TAG_UnlockService, "New LE Device: " + device.getName() + ",
-// Address: " + device
-//                    .getAddress() +
-//                    " @ " +
-//                    "" + result.rssi);
             /**
-             * We are looking for relay devices only, so validate he name
-             * that each device reports before saving the ble device object.
+             * We are looking for relay devices only, so validate the address that each device
+             * reports before saving the ble device object.
              */
-            if (/*DEVICE_NAME.equals(device.getName()) && */ deviceAddress.equals(device
-                            .getAddress()
-            )) {
+            if (bluetoothDeviceHolder.getBluetoothAddreess().equals(device.getAddress())) {
                 mDevice = device;
                 BleScan(false);
                 connectBluetoothDevice();
@@ -138,6 +127,7 @@ public class UnlockService extends Service {
             Log.i(Constants.TAG_UnlockService, "Scan Faild!!");
         }
     };
+    private Handler mHandler = new Handler();
 
 
     public UnlockService() {
@@ -217,7 +207,8 @@ public class UnlockService extends Service {
             if (Constants.ACTION_UNLOCK_USING_NFC.equals(action)) {
                 final String NFC_UID = intent.getStringExtra(Constants.EXTRA_NFC_UID);
                 final String firebaseUrl = intent.getStringExtra(Constants.FIREBASE);
-                mFirebasePermissions = new Firebase(firebaseUrl);
+                mFirebasePermissions = FirebaseDatabase.getInstance()
+                        .getReferenceFromUrl(firebaseUrl);
                 handleActionUnlockUsingNFC(NFC_UID, mFirebasePermissions);
             }
         }
@@ -244,22 +235,27 @@ public class UnlockService extends Service {
      *                 targeted to open.
      * @param firebase Firebase instance with a link to the users data on the Firebase database.
      */
-    private void handleActionUnlockUsingNFC(final String NFC_UID, Firebase firebase) {
-        Firebase firebaseRelay = new Firebase(Constants.FIREBASE_URL + "relays/" + NFC_UID);
+    private void handleActionUnlockUsingNFC(final String NFC_UID, DatabaseReference firebase) {
+        DatabaseReference firebaseRelay = FirebaseDatabase.getInstance()
+                .getReferenceFromUrl(Constants.FIREBASE_URL + "relays/" + NFC_UID);
         firebaseRelay.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
-                if (dataSnapshot.exists())
+                if (dataSnapshot.exists()) {
                     connectBLE(dataSnapshot.child("BLEuid").getValue(String.class),
                             (int) ((double) dataSnapshot.child("BLERelayNum").getValue
                                     (Double.class)), dataSnapshot.child("password")
                                     .getValue(String.class));
-                else
+                    DatabaseReference firebaseActivityRef = FirebaseDatabase.getInstance()
+                            .getReferenceFromUrl(Constants.FIREBASE_URL + "activity/" + NFC_UID +
+                                    "//" + NFC.getDateTimeString().replaceAll("\\.", "-"));
+                    firebaseActivityRef.setValue(LoginHandler.getAuthUid());
+                } else
                     notAuthorized();
             }
 
             @Override
-            public void onCancelled(FirebaseError firebaseError) {
+            public void onCancelled(DatabaseError databaseError) {
                 notAuthorized();
             }
         });
@@ -330,9 +326,7 @@ public class UnlockService extends Service {
     }
 
     private void connectBLE(String bluetoothAddreess, int relayNum, String password) {
-        this.targetRelayNum = relayNum;
-        this.deviceAddress = bluetoothAddreess;
-        this.btPassword = password;
+        bluetoothDeviceHolder = new BluetoothDeviceHolder(bluetoothAddreess, relayNum, password);
         scanLeDevice(true);
     }
 
@@ -516,33 +510,35 @@ public class UnlockService extends Service {
             return;
         }
 
-        if (btPassword.length() < 8) {
+        if (bluetoothDeviceHolder.getPassword().length() < 8) {
             Toast.makeText(this, "Please set the correct password",
                     Toast.LENGTH_SHORT).show();
         } else {
 
             byte[] data;
-            if (targetRelayNum == 1) {
+            if (bluetoothDeviceHolder.getRelayNum() == 1) {
                 if (relay1StateFlag == 0) {
                     //relay 1 open
-                    data = WritingDataFormat.getDataRelay1Open(btPassword);
+                    data = WritingDataFormat.getDataRelay1Open(bluetoothDeviceHolder.getPassword());
                     mBluetoothLeService.WriteBytes(data);
                     relay1StateFlag = 1;
                 } else {
                     //relay 1 close
-                    data = WritingDataFormat.getDataRelay1Close(btPassword);
+                    data = WritingDataFormat.getDataRelay1Close(bluetoothDeviceHolder.getPassword
+                            ());
                     mBluetoothLeService.WriteBytes(data);
                     relay1StateFlag = 0;
                 }
-            } else if (targetRelayNum == 2) {
+            } else if (bluetoothDeviceHolder.getRelayNum() == 2) {
                 if (relay2StateFlag == 0) {
                     //relay 2 open
-                    data = WritingDataFormat.getDataRelay2Open(btPassword);
+                    data = WritingDataFormat.getDataRelay2Open(bluetoothDeviceHolder.getPassword());
                     mBluetoothLeService.WriteBytes(data);
                     relay2StateFlag = 1;
                 } else {
                     //relay 2 close
-                    data = WritingDataFormat.getDataRelay2Close(btPassword);
+                    data = WritingDataFormat.getDataRelay2Close(bluetoothDeviceHolder.getPassword
+                            ());
                     mBluetoothLeService.WriteBytes(data);
                     relay2StateFlag = 0;
                 }

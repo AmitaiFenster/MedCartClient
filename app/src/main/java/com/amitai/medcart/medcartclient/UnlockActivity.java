@@ -9,8 +9,6 @@ import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.widget.Toast;
 
-import com.firebase.client.Firebase;
-
 public class UnlockActivity extends AppCompatActivity {
 
     private BluetoothAdapter mBluetoothAdapter;
@@ -20,8 +18,6 @@ public class UnlockActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 //        setContentView(R.layout.activity_unlock);
         // TODO: 5/9/2016 Delete layout activity_unlock if not used.
-
-        Firebase.setAndroidContext(this);
 
         final BluetoothManager bluetoothManager =
                 (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
@@ -34,7 +30,7 @@ public class UnlockActivity extends AppCompatActivity {
         }
 
         if (!LoginHandler.isLoggedIn()) {
-            Toast.makeText(UnlockActivity.this, "Please login!", Toast.LENGTH_LONG).show();
+            Toast.makeText(UnlockActivity.this, "Please Login!", Toast.LENGTH_LONG).show();
             finish();
         }
 

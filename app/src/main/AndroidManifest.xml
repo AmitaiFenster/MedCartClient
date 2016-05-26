@@ -25,9 +25,14 @@
         android:label="@string/app_name2"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
+        <!--TODO: check if this meta-deta id needed for facebook login. -->
+        <meta-data
+            android:name="com.facebook.sdk.ApplicationId"
+            android:value="@string/facebook_app_id"/>
         <activity
             android:name=".MainActivity"
             android:label="@string/app_name2"
+            android:screenOrientation="portrait"
             android:theme="@style/AppTheme.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
@@ -45,7 +50,9 @@
             android:exported="false">
         </service>
 
-        <activity android:name=".UnlockActivity">
+        <activity
+            android:name=".UnlockActivity"
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.nfc.action.TECH_DISCOVERED"/>
 
@@ -55,6 +62,18 @@
             <meta-data
                 android:name="android.nfc.action.TECH_DISCOVERED"
                 android:resource="@xml/nfc_tech_list"/>
+        </activity>
+        <activity
+            android:name=".EnrollCartActivity"
+            android:label="@string/title_activity_enroll_cart"
+            android:screenOrientation="portrait"
+            android:theme="@style/AppTheme.NoActionBar">
+        </activity>
+        <activity
+            android:name=".DeviceScanActivity"
+            android:label="@string/title_activity_enroll_cart"
+            android:screenOrientation="portrait"
+            android:theme="@style/AppTheme.NoActionBar">
         </activity>
     </application>
 
