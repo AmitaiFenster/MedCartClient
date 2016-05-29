@@ -28,11 +28,15 @@ import com.google.firebase.database.ValueEventListener;
 import java.util.Timer;
 import java.util.TimerTask;
 
+/**
+ * This service connects to the Bluetooth LE Relay device and then opens and closes the relay. the
+ * Bluetooth device is found according to the {@link Intent} extra data - the NFC UID.
+ */
 public class UnlockService extends Service {
 
 
-    // Stops scanning after 10 seconds.
-    private static final long SCAN_PERIOD = 10000;
+    // Stops scanning after 5 seconds.
+    private static final long SCAN_PERIOD = 5000;
     //    private static final String DEVICE_NAME = "ZL-RC02D";
     BluetoothDevice mDevice;
     private BluetoothDeviceHolder bluetoothDeviceHolder;
@@ -130,6 +134,9 @@ public class UnlockService extends Service {
     private Handler mHandler = new Handler();
 
 
+    /**
+     * Empty constructor required.
+     */
     public UnlockService() {
     }
 
@@ -192,7 +199,7 @@ public class UnlockService extends Service {
             }
         };
         timer5 = new Timer();
-        timer5.schedule(task5, 20000);
+        timer5.schedule(task5, 16000);
 
         if (intent != null) {
             bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
@@ -242,13 +249,13 @@ public class UnlockService extends Service {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
                 if (dataSnapshot.exists()) {
-                    connectBLE(dataSnapshot.child("BLEuid").getValue(String.class),
+                    scanAndConnectBLE(dataSnapshot.child("BLEuid").getValue(String.class),
                             (int) ((double) dataSnapshot.child("BLERelayNum").getValue
                                     (Double.class)), dataSnapshot.child("password")
                                     .getValue(String.class));
                     DatabaseReference firebaseActivityRef = FirebaseDatabase.getInstance()
                             .getReferenceFromUrl(Constants.FIREBASE_URL + "activity/" + NFC_UID +
-                                    "//" + NFC.getDateTimeString().replaceAll("\\.", "-"));
+                                    "//" + Constants.getDateTimeString().replaceAll("\\.", "-"));
                     firebaseActivityRef.setValue(LoginHandler.getAuthUid());
                 } else
                     notAuthorized();
@@ -290,7 +297,8 @@ public class UnlockService extends Service {
 //                            }
 //                        }
 //                        if (isAuthorized)
-//                            connectBLE(correspondingRelay.child("BLEuid").getValue(String.class),
+//                            scanAndConnectBLE(correspondingRelay.child("BLEuid").getValue
+// (String.class),
 //                                    (int) ((double) correspondingRelay.child("BLERelayNum")
 // .getValue
 //                                            (Double.class)));
@@ -316,8 +324,7 @@ public class UnlockService extends Service {
     }
 
     /**
-     * When not authorized call this method, which shows a toast to the user "You are not
-     * authorized!" and stops the service.
+     * Shows a toast to the user "You are not authorized!" and stops the service.
      */
     private void notAuthorized() {
         Toast.makeText(UnlockService.this, "You are not authorized!", Toast
@@ -325,7 +332,18 @@ public class UnlockService extends Service {
         stopSelf();
     }
 
-    private void connectBLE(String bluetoothAddreess, int relayNum, String password) {
+    /**
+     * This method initiates a scan for Bluetooth LE devices and when the Bluetooth device
+     * corresponding to the parameter bluetoothAddress is found the service will connect to that
+     * device and open and close the relay.
+     *
+     * @param bluetoothAddreess <code>String</code> with the Bluetooth LE device address that is
+     *                          targeted to connect.
+     * @param relayNum          <code>int</code> containing the targeted Relay number.
+     * @param password          <code>String</code> containing the password of the targeted
+     *                          Bluetooth device.
+     */
+    private void scanAndConnectBLE(String bluetoothAddreess, int relayNum, String password) {
         bluetoothDeviceHolder = new BluetoothDeviceHolder(bluetoothAddreess, relayNum, password);
         scanLeDevice(true);
     }
@@ -371,6 +389,10 @@ public class UnlockService extends Service {
         }
     }
 
+    /**
+     * Call this method to connect to a Bluetooth LE device and send the message (action to open
+     * and close the relay) after scanning and finding the Bluetooth LE device.
+     */
     public void connectBluetoothDevice() {
 
         if (mDevice == null) return;

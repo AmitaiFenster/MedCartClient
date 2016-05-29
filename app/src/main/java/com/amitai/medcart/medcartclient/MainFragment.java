@@ -7,11 +7,18 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.ListView;
-import android.widget.TextView;
 
-import java.util.List;
-import java.util.Map;
+import com.google.firebase.database.ChildEventListener;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+
+import java.util.ArrayList;
 
 
 /**
@@ -23,22 +30,16 @@ import java.util.Map;
  * create an instance of this fragment.
  */
 public class MainFragment extends Fragment {
-    // TODO: Rename parameter arguments, choose names that match
-    // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-//    private static final String ARG_PARAM1 = "param1";
-
 
     ListView myList;
+    ArrayList<String> authArrayList = new ArrayList<>();
+    ArrayList<String> nfcArrayList = new ArrayList<>();
+    ArrayAdapter<String> adapter;
     View rootView;
     //ListView explanation: http://stackoverflow.com/a/7917516/4038549
-    //LIST OF ARRAY STRINGS WHICH WILL SERVE AS LIST ITEMS.
-    List<Map<String, String>> listData;
-    //DEFINING A STRING ADAPTER WHICH WILL HANDLE THE DATA OF THE LISTVIEW.
     String repoUrl;
-    // TODO: Rename and change types of parameters
-//    private String mParam1;
     private OnFragmentInteractionListener mListener;
-    private TextView mainText;
+//    private TextView mainText;
 
 
     public MainFragment() {
@@ -52,7 +53,6 @@ public class MainFragment extends Fragment {
      * @param repoUrl this specific user UID Firebase URL.
      * @return A new instance of fragment MainFragment.
      */
-    // TODO: Rename and change types and number of parameters
     public static MainFragment newInstance(String repoUrl) {
         MainFragment fragment = new MainFragment();
         Bundle args = new Bundle();
@@ -77,26 +77,81 @@ public class MainFragment extends Fragment {
     }
 
     /**
-     * Initializing other views and components. this method is usually called by the OnCreate
-     * method.
+     * Initializing the list data of the authorized relays. Data received from Firebase and
+     * inserted to the authArrayList. adapter.notifyDataSetChanged() is called.
      */
-    private void components() {
+    private void listDataSetup() {
+        adapter = new ArrayAdapter<String>(getActivity(), R.layout.simple_list_item_1,
+                authArrayList);
 
-        //TODO: remove if not needed. If using nfc foreground detection or opening already
-        // running activities and adding the nfc intent to a list, than use this:
-//        mPendingIntent = PendingIntent.getActivity(this, 0,
-//                new Intent(this, getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), 0);
-//
-//        mainText = (TextView) rootView.findViewById(R.id.unlockTextView);
+        final DatabaseReference authRef = FirebaseDatabase.getInstance().getReferenceFromUrl
+                (Constants.FIREBASE_URL + "users/" + LoginHandler.getAuthUid() + "/authorized");
 
-//        myList = (ListView) getActivity().findViewById(R.id.unlockListView);
-//        listData = new ArrayList<Map<String, String>>();
-//        adapter = new SimpleAdapter(getActivity(), listData,
-//                R.layout.simple_list_item_2,
-//                new String[]{"title", "date"},
-//                new int[]{R.id.listText1,
-//                        R.id.listText2});
-//        myList.setAdapter(adapter);
+        authRef.addChildEventListener(new ChildEventListener() {
+            @Override
+            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+                final String key = dataSnapshot.getKey();
+
+                final DatabaseReference relayRef = FirebaseDatabase.getInstance()
+                        .getReferenceFromUrl(Constants.FIREBASE_URL + "relays/" + key +
+                                "/description");
+                relayRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(DataSnapshot dataSnapshot) {
+                        authArrayList.add(dataSnapshot.getValue(String.class));
+                        nfcArrayList.add(key);
+                        adapter.notifyDataSetChanged();
+                    }
+
+                    @Override
+                    public void onCancelled(DatabaseError databaseError) {
+
+                    }
+                });
+            }
+
+            @Override
+            public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+
+            }
+
+            @Override
+            public void onChildRemoved(DataSnapshot dataSnapshot) {
+
+            }
+
+            @Override
+            public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
+
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        listSetup();
+    }
+
+    /**
+     * Setting up the ListView of the authorized relays.
+     */
+    private void listSetup() {
+        myList = (ListView) getView().findViewById(R.id.authDevicesList);
+        myList.setAdapter(adapter);
+        myList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                String nfcUID = nfcArrayList.get(position);
+                UnlockActivity.startUnlockActivity(getActivity(), nfcUID);
+            }
+        });
 
     }
 
@@ -105,7 +160,7 @@ public class MainFragment extends Fragment {
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
         rootView = inflater.inflate(R.layout.fragment_main, container, false);
-        components();
+        listDataSetup();
         return rootView;
     }
 
@@ -138,7 +193,7 @@ public class MainFragment extends Fragment {
      * fragment to allow an interaction in this fragment to be communicated
      * to the activity and potentially other fragments contained in that
      * activity.
-     * <p/>
+     * <p>
      * See the Android Training lesson <a href=
      * "http://developer.android.com/training/basics/fragments/communicating.html"
      * >Communicating with Other Fragments</a> for more information.

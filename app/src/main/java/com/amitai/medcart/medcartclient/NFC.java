@@ -3,9 +3,6 @@ package com.amitai.medcart.medcartclient;
 import android.content.Intent;
 import android.nfc.NfcAdapter;
 
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -15,22 +12,9 @@ import java.util.Map;
 public class NFC {
 
     /**
-     * @return Current Date and time in a DateFormat Object.
-     */
-    public static DateFormat getDateTime() {
-        return SimpleDateFormat.getDateTimeInstance();
-    }
-
-    /**
-     * @return Current Date and time in a String format.
-     */
-    public static String getDateTimeString() {
-        return getDateTime().format(new Date());
-    }
-
-    /**
-     * @param intent intent of the current scanned nfc tag.
-     * @return TagUID  String with the current time and the NFC UID of the passed intent.
+     * @param intent {@link Intent} of the current scanned nfc tag.
+     * @return TagUID <code>String</code> with the current time and the NFC UID of the passed
+     * intent.
      */
     public static String getTagUID(Intent intent) {
         if (NfcAdapter.ACTION_TECH_DISCOVERED.equals(intent.getAction())) {
@@ -39,19 +23,27 @@ public class NFC {
             String hexStringIDfinal = stringUIDDisplayFormat(hexStringID);
             Map<String, String> datum = new HashMap<String, String>(2);
             datum.put("title", hexStringIDfinal);
-            datum.put("date", getDateTimeString());
+            datum.put("date", Constants.getDateTimeString());
             return datum.toString();
         }
         return "";
     }
 
+    /**
+     * @param inarray array of bytes containing the UID (in the format that is received from the
+     *                NFC detected intent). The UID is received from the {@link
+     *                Intent#getByteArrayExtra(String)} (the intent of the detected NFC)
+     *                and providing as a parameter {@link NfcAdapter#EXTRA_ID}.
+     * @return <code>String</code> with the NFC UID in a display format, with a ':' dividing the
+     * hexadecimal numbers.
+     */
     public static String ByteArrayToStringDisplayFormat(byte[] inarray) {
         return stringUIDDisplayFormat(ByteArrayToHexString(inarray));
     }
 
     /**
-     * @param ID String with numbers only that represent the nfc tag UID.
-     * @return String with the UID in a display format, with dashes between each byte.
+     * @param ID <code>String</code> with numbers only that represent the nfc tag UID.
+     * @return <code>String</code> with the UID in a display format, with dashes between each byte.
      */
     public static String stringUIDDisplayFormat(String ID) {
         char[] IDcharArray = ID.toCharArray();
@@ -65,7 +57,7 @@ public class NFC {
      * Converts between byte array and hexadecimal.
      *
      * @param inarray array of bytes.
-     * @return String that contains a hexadecimal address.
+     * @return <code>String</code> that contains a hexadecimal address.
      */
     public static String ByteArrayToHexString(byte[] inarray) {
         int i, j, in;

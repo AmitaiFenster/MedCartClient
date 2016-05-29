@@ -6,6 +6,7 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.design.widget.NavigationView;
@@ -22,27 +23,22 @@ import android.widget.CompoundButton;
 import android.widget.Switch;
 import android.widget.Toast;
 
-import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
-// TODO: 5/5/2016 If possible, have a diffrent class implement OnLoginListener.
+// TODO: 5/5/2016 If possible, have a different class implement OnLoginListener.
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener, MainFragment
-        .OnFragmentInteractionListener /*, LoginFragment.OnLoginListener */ {
+        .OnFragmentInteractionListener {
 
     //    public FloatingActionButton fab;
-    public GoogleApiClient mGoogleApiClient;
     View viewSwitchLayout;
     NavigationView navigationView;
     LoginHandler login;
     private BluetoothAdapter mBluetoothAdapter;
-    //TODO: remove if not needed. If using nfc foreground detection or opening already running
-    // activities and adding the nfc intent to a list, than use this:
-//    private PendingIntent mPendingIntent;
     private Switch toolbarSwitch;
     private MenuItem mPreviousMenuItem;
 
@@ -53,6 +49,17 @@ public class MainActivity extends AppCompatActivity
         final BluetoothManager bluetoothManager =
                 (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
         mBluetoothAdapter = bluetoothManager.getAdapter();
+
+        if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
+            Toast.makeText(this, R.string.ble_not_supported, Toast.LENGTH_SHORT).show();
+            finish();
+        }
+        // Checks if Bluetooth is supported on the device.
+        if (mBluetoothAdapter == null) {
+            Toast.makeText(this, R.string.error_bluetooth_not_supported, Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
 
         setContentView(R.layout.mainactivity_layout);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
@@ -120,6 +127,8 @@ public class MainActivity extends AppCompatActivity
         MenuItem menuSwitchItem = menu.findItem(R.id.toolbarSwitch);
         viewSwitchLayout = MenuItemCompat.getActionView(menuSwitchItem);
         toolbarSwitch = (Switch) viewSwitchLayout.findViewById(R.id.switchForActionBar);
+        if (EnablingComponents.isComponentsEnabled(this, mBluetoothAdapter))
+            toolbarSwitch.setChecked(true);
         toolbarSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
@@ -158,7 +167,7 @@ public class MainActivity extends AppCompatActivity
         } else if (id == R.id.action_settings) {
             return true;
         } else if (id == R.id.action_logout) {
-            login.logout();
+            login.signOut();
             return true;
         }
 
@@ -174,9 +183,10 @@ public class MainActivity extends AppCompatActivity
         if (id == R.id.nav_main) {
             login.tryAccessMainFragment();
         } else if (id == R.id.login) {
-            login.switchToLogin();
+            login.switchToSignIn();
         } else if (id == R.id.nav_settings) {
-
+            Intent intent = new Intent(this, SettingsActivity.class);
+            startActivity(intent);
         } else if (id == R.id.nav_enroll_cart) {
             // TODO: 5/22/2016  fix setNavigationViewChecked, when back button is pressed Enroll
             // Cart item is still selected on the menu.
@@ -187,14 +197,19 @@ public class MainActivity extends AppCompatActivity
                 @Override
                 public void onDataChange(DataSnapshot dataSnapshot) {
                     if (dataSnapshot.getValue(String.class).equals("admin")) {
+
+                        //setTitle and setNavigationViewChecked in the case of using a fragment
+                        // for enroll cart, but I decided to use a new activity, so the user doesn't
+                        // have access to the navigationView while in the EnrollCartActivity.
 //                        setTitle("Enroll Cart");
-                        setNavigationViewChecked(item);
+//                        setNavigationViewChecked(item);
+
                         Intent myIntent = new Intent(MainActivity.this, EnrollCartActivity.class);
                         startActivity(myIntent);
                     } else {
                         Toast.makeText(MainActivity.this, "Please login as admin", Toast
                                 .LENGTH_SHORT).show();
-                        setNavigationViewChecked(Constants.currentFragment);
+//                        setNavigationViewChecked(Constants.currentFragment);
                     }
                 }
 
@@ -238,20 +253,17 @@ public class MainActivity extends AppCompatActivity
     }
 
     /**
-     * @param item item number
+     * @param item item number of the navigation item wished to be checked.
      */
     public void setNavigationViewChecked(int item) {
-//        if (item != Constants.currentFragment) {
-//            navigationView.getMenu().getItem(item).setChecked(true);
-//            Constants.currentFragment = item;
-//        }
-
         MenuItem menuItem = navigationView.getMenu().getItem(item);
         setNavigationViewChecked(menuItem);
-        Constants.currentFragment = item;
     }
 
 
+    /**
+     * @param menuItem the navigation item wished to be checked.
+     */
     public void setNavigationViewChecked(MenuItem menuItem) {
         menuItem.setCheckable(true);
         menuItem.setChecked(true);
@@ -259,5 +271,6 @@ public class MainActivity extends AppCompatActivity
             mPreviousMenuItem.setChecked(false);
         }
         mPreviousMenuItem = menuItem;
+        Constants.currentFragment = menuItem.getItemId();
     }
 }

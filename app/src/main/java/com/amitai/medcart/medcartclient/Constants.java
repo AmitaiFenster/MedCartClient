@@ -1,5 +1,9 @@
 package com.amitai.medcart.medcartclient;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
 /**
  * Created by amita on 5/4/2016.
  */
@@ -12,10 +16,9 @@ public class Constants {
     public static final int REQUEST_CODE_GOOGLE_LOGIN = 4;
     public static final int REQUEST_BLUETOOTH_DEVICE_DATA = 5;
     public static final String TAG_MainActivity = "MedCart.MainActivity";
-    public static final String TAG_EnrollCartActivity = "MedCart.EnrollCartActivity";
+    public static final String TAG_EnrollCartActivity = "EnrollCartActivity";
     public static final String TAG_LoginHandler = "MedCart.LoginHandler";
     public static final String TAG_UnlockService = "UnlockService";
-    public static int currentFragment = -1;
     /**
      * Use this action to run unlock service using NFC Tag UID.
      */
@@ -25,4 +28,20 @@ public class Constants {
      * Extra data to include when running unlock service using NFC Tag UID.
      */
     public static final String EXTRA_NFC_UID = "com.amitai.medcart.medcartclient.extra.NFC_UID";
+    public static int currentFragment = -1;
+
+    /**
+     * @return Current Date and time in a DateFormat Object.
+     */
+    public static DateFormat getDateTime() {
+        return SimpleDateFormat.getDateTimeInstance();
+    }
+
+    /**
+     * @return Current Date and time in a String format.
+     */
+    public static String getDateTimeString() {
+        return getDateTime().format(new Date());
+    }
+
 }

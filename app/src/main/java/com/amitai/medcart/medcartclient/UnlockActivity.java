@@ -1,5 +1,6 @@
 package com.amitai.medcart.medcartclient;
 
+import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothManager;
 import android.content.Context;
@@ -11,13 +12,13 @@ import android.widget.Toast;
 
 public class UnlockActivity extends AppCompatActivity {
 
+    public static final String EXTRA_NFC_ID = "com.amitai.medcart.medcartclient" +
+            ".UnlockActivity.extra.nfcID";
     private BluetoothAdapter mBluetoothAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-//        setContentView(R.layout.activity_unlock);
-        // TODO: 5/9/2016 Delete layout activity_unlock if not used.
 
         final BluetoothManager bluetoothManager =
                 (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
@@ -34,16 +35,30 @@ public class UnlockActivity extends AppCompatActivity {
             finish();
         }
 
+        EnablingComponents.enableAllComponents(this, mBluetoothAdapter);
+
         Intent intent = getIntent();
         if (NfcAdapter.ACTION_TECH_DISCOVERED.equals(intent.getAction()) && EnablingComponents
-                .enableAllComponents(this, mBluetoothAdapter)) {
+                .isComponentsEnabled(this, mBluetoothAdapter)) {
 
             UnlockService.startActionUnlockUsingNFC(this, NFC.ByteArrayToStringDisplayFormat(intent
                     .getByteArrayExtra(NfcAdapter.EXTRA_ID)), Constants.FIREBASE_URL + "/users/"
                     + LoginHandler.getAuthUid());
         }
+        if (intent.getAction().equals(Constants.ACTION_UNLOCK_USING_NFC) && EnablingComponents
+                .isComponentsEnabled(this, mBluetoothAdapter)) {
+            UnlockService.startActionUnlockUsingNFC(this, intent.getStringExtra(this
+                    .EXTRA_NFC_ID), Constants.FIREBASE_URL + "/users/" + LoginHandler.getAuthUid());
+        }
 
         finish();
+    }
+
+    public static void startUnlockActivity(Activity activity, String nfcUID) {
+        Intent intent = new Intent(Constants.ACTION_UNLOCK_USING_NFC);
+        intent.putExtra(UnlockActivity.EXTRA_NFC_ID, nfcUID);
+        intent.setClass(activity, UnlockActivity.class);
+        activity.startActivity(intent);
     }
 
 }

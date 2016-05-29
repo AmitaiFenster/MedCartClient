@@ -1,7 +1,7 @@
 package com.amitai.medcart.medcartclient;
 
 /**
- * Created by amita on 5/19/2016.
+ * Use a BluetoothDeviceHolder to hold the properties and components of a bluetooth lock.
  */
 public class BluetoothDeviceHolder {
 

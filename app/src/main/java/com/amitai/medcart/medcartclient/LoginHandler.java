@@ -62,11 +62,17 @@ public class LoginHandler {
         mAuth.addAuthStateListener(mAuthListener);
     }
 
+    /**
+     * @return true if the user is logged in and false otherwise.
+     */
     public static boolean isLoggedIn() {
         // TODO: 5/25/2016 add expiration!
         return getFirebaseUser() != null /* && !isExpired(auth)*/;
     }
 
+    /**
+     * @return FirebaseUser, an instance of the current logged in user.
+     */
     public static FirebaseUser getFirebaseUser() {
         return FirebaseAuth.getInstance().getCurrentUser();
     }
@@ -76,13 +82,26 @@ public class LoginHandler {
 //        return (System.currentTimeMillis() / 1000) >= authData.getExpires();
 //    }
 
+    /**
+     * @return String containing the UID of the current authenticated user. if there is no user
+     * logged in null will be returned.
+     */
     public static String getAuthUid() {
-        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        FirebaseUser user = getFirebaseUser();
         if (user != null)
             return user.getUid();
         return null;
     }
 
+    /**
+     * Call this method from the {@link Activity#onActivityResult(int, int, Intent)} method
+     * in the activity that is using this {@link LoginHandler}, in order to get the user info
+     * from the newly signed in user and to finish the sign in process.
+     *
+     * @param requestCode
+     * @param resultCode
+     * @param data
+     */
     public void activityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == RC_SIGN_IN) {
             if (resultCode == this.activity.RESULT_OK) {
@@ -107,7 +126,7 @@ public class LoginHandler {
         if (!isLoggedIn()) {
 //            this.activity.fab.hide();
             Toast.makeText(this.activity, "Please login!", Toast.LENGTH_LONG).show();
-            switchToLogin();
+            switchToSignIn();
         } else {
 //            this.activity.fab.show();
             switchToMainFragment(Constants.FIREBASE_URL + "/users/" + mAuth.getCurrentUser()
@@ -115,39 +134,62 @@ public class LoginHandler {
         }
     }
 
-    public void switchToLogin() {
+    /**
+     * Use this method to start the FirebaseUI sign in activity.
+     */
+    public void switchToSignIn() {
+        // TODO: 5/27/2016 solve Facebook authentication problem.
         this.activity.startActivityForResult(
                 AuthUI.getInstance()
                         .createSignInIntentBuilder()
                         .setProviders(
                                 AuthUI.EMAIL_PROVIDER,
-                                AuthUI.GOOGLE_PROVIDER,
-                                AuthUI.FACEBOOK_PROVIDER)
+                                AuthUI.GOOGLE_PROVIDER
+                                /*AuthUI.FACEBOOK_PROVIDER*/)
                         .build(),
                 RC_SIGN_IN);
     }
 
+    /**
+     * Switch to the main fragment.
+     *
+     * @param repoUrl this specific user UID Firebase URL.
+     */
     private void switchToMainFragment(String repoUrl) {
-        this.activity.setTitle(this.activity.getResources().getString(R.string.app_name2));
-        this.activity.setNavigationViewChecked(0);
-        FragmentTransaction fragmentTransaction = this.activity.getFragmentManager()
-                .beginTransaction();
-        Fragment mainFragment = MainFragment.newInstance(repoUrl);
-        fragmentTransaction.replace(R.id.content_frame, mainFragment, "Main");
-        fragmentTransaction.commit();
+        if (isLoggedIn()) {
+            this.activity.setTitle(this.activity.getResources().getString(R.string.app_name2));
+            this.activity.setNavigationViewChecked(0);
+            FragmentTransaction fragmentTransaction = this.activity.getFragmentManager()
+                    .beginTransaction();
+            Fragment mainFragment = MainFragment.newInstance(repoUrl);
+            fragmentTransaction.replace(R.id.content_frame, mainFragment, "Main");
+            fragmentTransaction.commit();
+        }
     }
 
-    public void logout() {
+    /**
+     * Use this method to sign out the user. When sign out is complete, the sign in activity will
+     * launch.
+     */
+    public void signOut() {
         AuthUI.getInstance()
                 .signOut(this.activity)
                 .addOnCompleteListener(new OnCompleteListener<Void>() {
                     public void onComplete(@NonNull Task<Void> task) {
                         // user is now signed out
-                        switchToLogin();
+                        switchToSignIn();
                     }
                 });
     }
 
+    /**
+     * This method adds the currently signed in users information to the Firebase database. The
+     * user information will be added to the Firebase database only if the database is missing
+     * this user information. If this users information is already on the database nothing will
+     * be changed.
+     * <p/>
+     * Call this method when a new user signs in.
+     */
     private void logUserInfo() {
         final DatabaseReference ref = FirebaseDatabase.getInstance().getReferenceFromUrl
                 (Constants.FIREBASE_URL + "/users/" + getAuthUid());
@@ -181,10 +223,17 @@ public class LoginHandler {
         setupNavProfileInfo(firebaseUser);
     }
 
+    /**
+     * This method sets the TextViews and the image in the header of the navigationView to adapt
+     * to the {@link FirebaseUser firebaseUser}. Call this method after the user signs in and
+     * when the app launches.
+     *
+     * @param firebaseUser
+     */
     public void setupNavProfileInfo(FirebaseUser firebaseUser) {
         TextView nav_header_emailAddress = (TextView) activity.navigationView.getHeaderView(0)
                 .findViewById(R.id.nav_header_emailAddress);
-        nav_header_emailAddress.setText((String) firebaseUser.getEmail());
+        nav_header_emailAddress.setText(firebaseUser.getEmail());
         TextView nav_header_displayName = (TextView) activity.navigationView.getHeaderView(0)
                 .findViewById(R.id.nav_header_displayName);
         nav_header_displayName.setText(firebaseUser.getProviderData().get(0).getDisplayName());
@@ -198,7 +247,6 @@ public class LoginHandler {
             profileImage.setImageDrawable(this.activity.getResources().getDrawable(android.R
                     .drawable.sym_def_app_icon));
         }
-
     }
 
 }

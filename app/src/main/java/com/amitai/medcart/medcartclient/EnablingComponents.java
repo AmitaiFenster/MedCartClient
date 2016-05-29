@@ -16,10 +16,33 @@ import android.support.v4.content.ContextCompat;
 import android.widget.Toast;
 
 /**
- * Created by amita on 5/9/2016.
+ * class with only static methods for enabling the components needed in the app: Bluetooth, NFC and
+ * Location.
  */
 public class EnablingComponents {
 
+    /**
+     * @param activity
+     * @param mBluetoothAdapter
+     * @return true if all components are enabled, ond false otherwise. components: NFC,
+     * Bluetooth, Location.
+     */
+    public static boolean isComponentsEnabled(Activity activity, BluetoothAdapter
+            mBluetoothAdapter) {
+        return isBluetoothEnabled(mBluetoothAdapter, activity) && isLocationEnabled(activity) &&
+                isNFCEnabled(activity);
+    }
+
+    /**
+     * @param activity
+     * @return true if NFC in enabled and available and false otherwise.
+     */
+    public static boolean isNFCEnabled(Activity activity) {
+        NfcAdapter nfcAdapter = NfcAdapter.getDefaultAdapter(activity);
+        if (nfcAdapter == null || !nfcAdapter.isEnabled())
+            return false;
+        return true;
+    }
 
     /**
      * Enabling all components, including: NFC, Bluetooth, Location.
@@ -38,7 +61,7 @@ public class EnablingComponents {
      * will be opened so that the user can manually turn on nfc.
      *
      * @param activity Context activity
-     * @return True if nfc is Enabled. and false otherwise.
+     * @return True if nfc is enabled. and false otherwise.
      */
     private static boolean enableNFC(Activity activity) {
         NfcAdapter nfcAdapter = NfcAdapter.getDefaultAdapter(activity);
@@ -48,11 +71,24 @@ public class EnablingComponents {
         } else if (!nfcAdapter.isEnabled()) {
             showWirelessSettingsDialog(activity);
         } else {
-//            Toast.makeText(MainActivity.this, "NFC available", Toast.LENGTH_LONG)
-//                    .show();
             return true;
         }
         return false;
+    }
+
+    /**
+     * @param activity
+     * @return true is location is enabled and false otherwise.
+     */
+    public static boolean isLocationEnabled(Activity activity) {
+        if (ContextCompat.checkSelfPermission(activity, Manifest.permission.ACCESS_COARSE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED)
+            return false;
+        LocationManager manager = (LocationManager) activity.getSystemService(Context
+                .LOCATION_SERVICE);
+        if (!manager.isProviderEnabled(LocationManager.GPS_PROVIDER))
+            return false;
+        return true;
     }
 
     /**
@@ -87,18 +123,32 @@ public class EnablingComponents {
 
     /**
      * Method to turn on Bluetooth.
+     * <p/>
+     * Ensures Bluetooth is enabled on the device.  If Bluetooth is not currently enabled, fire
+     * an intent to display a dialog asking the user to grant permission to enable it.
      *
      * @param activity          Context activity
      * @param mBluetoothAdapter
      * @return true if Bluetooth is enabled, and false otherwise.
      */
     public static boolean enableBluetooth(Activity activity, BluetoothAdapter mBluetoothAdapter) {
-        if (mBluetoothAdapter == null || !mBluetoothAdapter.isEnabled()) {
+        if (!isBluetoothEnabled(mBluetoothAdapter, activity)) {
             Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             activity.startActivityForResult(enableBtIntent, Constants.REQUEST_ENABLE_BT);
             return false;
         }
         return true;
+    }
+
+    /**
+     * @param mBluetoothAdapter
+     * @param activity
+     * @return true if bluetooth is enabled and false otherwise.
+     */
+    public static boolean isBluetoothEnabled(BluetoothAdapter mBluetoothAdapter, Activity
+            activity) {
+        return (mBluetoothAdapter != null && mBluetoothAdapter.isEnabled() && activity
+                .getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE));
     }
 
     /**

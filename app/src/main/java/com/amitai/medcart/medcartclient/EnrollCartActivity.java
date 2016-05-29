@@ -2,6 +2,7 @@ package com.amitai.medcart.medcartclient;
 
 import android.app.AlertDialog;
 import android.app.PendingIntent;
+import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -11,6 +12,7 @@ import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
@@ -18,6 +20,8 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -44,10 +48,14 @@ public class EnrollCartActivity extends AppCompatActivity {
     private String bleAddress;
     private String nfcAddress;
 
-    public static int toInteger(String s) {
+    /**
+     * @param string String to be converted to integer.
+     * @return the integer that was converted from the String string.
+     */
+    public static int toInteger(String string) {
         int i;
         try {
-            i = Integer.parseInt(s);
+            i = Integer.parseInt(string);
         } catch (NumberFormatException e) {
             return -1;
         } catch (NullPointerException e) {
@@ -56,6 +64,12 @@ public class EnrollCartActivity extends AppCompatActivity {
         return i;
     }
 
+    /**
+     * Uploads to Firebase a new Bluetooth LE relay device.
+     *
+     * @param deviceHolder {@link BluetoothDeviceHolder} with the components of the device wished
+     *                     to upload to Firebase.
+     */
     private void uploadFirebase(BluetoothDeviceHolder deviceHolder) {
         Map<String, Object> map = new HashMap<String, Object>();
         FirebaseDatabase database = FirebaseDatabase.getInstance();
@@ -66,7 +80,7 @@ public class EnrollCartActivity extends AppCompatActivity {
 
         map.put("BLERelayNum", deviceHolder.getRelayNum());
         map.put("BLEuid", deviceHolder.getBluetoothAddreess());
-        map.put("Description", deviceHolder.getDescription());
+        map.put("description", deviceHolder.getDescription());
         map.put("NFCuid", deviceHolder.getNfcAddress());
         map.put("password", deviceHolder.getPassword());
 
@@ -75,6 +89,11 @@ public class EnrollCartActivity extends AppCompatActivity {
         map.put("authorized", mapAuthorized);
 
         firebaseRelaysRef.setValue(map);
+
+        DatabaseReference firebaseUserRef = database.getReferenceFromUrl(Constants.FIREBASE_URL
+                + "users/" + LoginHandler.getAuthUid() + "/authorized/" + deviceHolder
+                .getNfcAddress());
+        firebaseUserRef.setValue("true");
 
         Toast.makeText(EnrollCartActivity.this, "Lock added successfully", Toast.LENGTH_SHORT)
                 .show();
@@ -87,7 +106,16 @@ public class EnrollCartActivity extends AppCompatActivity {
         setContentView(R.layout.activity_enroll_cart);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+        EnablingComponents.enableAllComponents(this, BluetoothAdapter.getDefaultAdapter());
+        components();
+        uploading = false;
+    }
 
+    /**
+     * Initializing other views and components. this method is usually called by the OnCreate
+     * method.
+     */
+    private void components() {
         fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -122,11 +150,12 @@ public class EnrollCartActivity extends AppCompatActivity {
         mDescriptionView.setVisibility(View.GONE);
         mPasswordView.setVisibility(View.GONE);
         mRelayNumView.setVisibility(View.GONE);
-
-        uploading = false;
-
     }
 
+    /**
+     * Set the visibility of the hidden views to visible. use this when ready for the user to
+     * enter the device information (usually after the NFC and Bluetooth device were found).
+     */
     private void makeViewsVisible() {
         viewDeviceAddress.setVisibility(View.VISIBLE);
         viewDeviceName.setVisibility(View.VISIBLE);
@@ -183,10 +212,18 @@ public class EnrollCartActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Use this method to handle a new NFC Tag that was detected. this method checks if the NFC
+     * is being used (exists in the firebase database). If it being used a dialog will launch to
+     * ask the user whether he wants to override the NFC Tag data on the database for the new tag
+     * corresponding to the NFC_UID.
+     * <p/>
+     * If the NFC tag is not being used, or if the user chose to overwrite, the NFC_UID will be
+     * saved as the NFC address and the NFC address TextView will be set to the NFC_UID.
+     *
+     * @param NFC_UID UID of the detected NFC Tag.
+     */
     public void newNFCDetected(final String NFC_UID) {
-        // TODO: 5/24/2016 Add dialog to give the user a option to override the nfc relay data on
-        // the firebase database.
-
         DatabaseReference firebaseRelaysRef = FirebaseDatabase.getInstance()
                 .getReferenceFromUrl(Constants.FIREBASE_URL + "relays");
         firebaseRelaysRef.addListenerForSingleValueEvent(new ValueEventListener() {
@@ -226,8 +263,8 @@ public class EnrollCartActivity extends AppCompatActivity {
                         AlertDialog dialog = builder.create();
                         dialog.show();
 
-                        Toast.makeText(EnrollCartActivity.this, "NFC tag if being used for a " +
-                                "different lock", Toast.LENGTH_SHORT).show();
+//                        Toast.makeText(EnrollCartActivity.this, "NFC tag if being used for a " +
+//                                "different lock", Toast.LENGTH_SHORT).show();
                         isNFCUsed = true;
                         break;
                     }
@@ -248,21 +285,48 @@ public class EnrollCartActivity extends AppCompatActivity {
 
     }
 
+    /**
+     * setting the NFC address TextView to the new NFC and setting the nfcAddress to the new
+     * NFC_UID.
+     *
+     * @param NFC_UID
+     */
     private void setNewNFC(String NFC_UID) {
         textview_NFC_UID.setText("NFC UID:  " + NFC_UID);
         nfcAddress = NFC_UID;
         button_find_ble_lock.setVisibility(View.VISIBLE);
     }
 
+    /**
+     * Setting the TextView for the new bluetooth information.
+     *
+     * @param deviceName    The newly detected Bluetooth device name.
+     * @param deviceAddress The newly detected Bluetooth device name.
+     */
     private void setChosenBleView(String deviceName, String deviceAddress) {
         viewDeviceAddress.setText(deviceAddress);
         viewDeviceName.setText(deviceName);
     }
 
+    /**
+     * Is the password is valid.
+     * <p>
+     * A valid password is a password that is longer than 4 characters.
+     *
+     * @param password password to be checked.
+     * @return true if the password is valid and false otherwise.
+     */
     private boolean isPasswordValid(String password) {
         return password.length() > 4;
     }
 
+    /**
+     * Upload all the device properties that was entered in this EnrollCartActivity to Firebase.
+     * This method checks if all af the information (the components) is valid. If not, an error
+     * will be displayed to the user and the upload will cancel.
+     * <p>
+     * The components: relayNumber, password, description, bleAddress, nfcAddress.
+     */
     public void upload() {
         if (uploading) {
             return;
@@ -317,6 +381,9 @@ public class EnrollCartActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Hide the keyboard. Use when uploading process begins and the is no need for a keyboard.
+     */
     private void hideKeyboard() {
         InputMethodManager imm = (InputMethodManager) getSystemService(Context
                 .INPUT_METHOD_SERVICE);

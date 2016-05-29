@@ -26,7 +26,6 @@ import android.bluetooth.le.ScanCallback;
 import android.bluetooth.le.ScanResult;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
@@ -39,7 +38,6 @@ import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import java.util.ArrayList;
 
@@ -63,7 +61,7 @@ public class DeviceScanActivity extends ListActivity {
 
         @Override
         public void onScanFailed(int errorCode) {
-            Log.i(Constants.TAG_UnlockService, "Scan Faild!!");
+            Log.i(Constants.TAG_UnlockService, "Scan Faild!");
         }
     };
     private BluetoothAdapter mBluetoothAdapter;
@@ -77,7 +75,6 @@ public class DeviceScanActivity extends ListActivity {
         super.onCreate(savedInstanceState);
 
         mHandler = new Handler();
-//        this.requestWindowFeature(Window.FEATURE_NO_TITLE);
         setContentView(R.layout.activity_scan);
 
         buttonScan = (Button) findViewById(R.id.buttonscan);
@@ -90,26 +87,13 @@ public class DeviceScanActivity extends ListActivity {
             }
         });
 
-        // TODO: 5/22/2016 add EnableAllComponents to make sure location permission is allowed,
-        // and to make this code more simple (remove what isn't needed here that
-        // EnableAllComponents covers...
-
-        if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
-            Toast.makeText(this, R.string.ble_not_supported, Toast.LENGTH_SHORT).show();
-            finish();
-        }
-
         final BluetoothManager bluetoothManager =
                 (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
         mBluetoothAdapter = bluetoothManager.getAdapter();
 
-        // Checks if Bluetooth is supported on the device.
-        if (mBluetoothAdapter == null) {
-            Toast.makeText(this, R.string.error_bluetooth_not_supported, Toast.LENGTH_SHORT).show();
-            finish();
-            return;
-        }
+        EnablingComponents.enableAllComponents(this, mBluetoothAdapter);
 
+        // TODO: 5/27/2016 Test this statement when bluetooth was turned off.
         if (mBluetoothAdapter.getState() == BluetoothAdapter.STATE_ON) {
             mBluetoothLeScanner = mBluetoothAdapter.getBluetoothLeScanner();
         }
@@ -130,19 +114,9 @@ public class DeviceScanActivity extends ListActivity {
     protected void onResume() {
         super.onResume();
 
-        // Ensures Bluetooth is enabled on the device.  If Bluetooth is not currently enabled,
-        // fire an intent to display a dialog asking the user to grant permission to enable it.
-        if (!mBluetoothAdapter.isEnabled()) {
-            if (!mBluetoothAdapter.isEnabled()) {
-                Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-                startActivityForResult(enableBtIntent, Constants.REQUEST_ENABLE_BT);
-            }
-        }
-
         // Initializes list view adapter.
         mLeDeviceListAdapter = new LeDeviceListAdapter();
         setListAdapter(mLeDeviceListAdapter);
-
     }
 
     @Override
