@@ -1,19 +1,3 @@
-/*
- * Copyright (C) 2013 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package com.amitai.medcart.medcartclient;
 
 import android.app.Activity;
@@ -46,8 +30,13 @@ import java.util.ArrayList;
  * Activity for scanning and displaying available Bluetooth LE devices.
  */
 public class DeviceScanActivity extends ListActivity {
-    // Stops scanning after 10 seconds.
-    private static final long SCAN_PERIOD = 10000;
+    public static final String REQUEST_START_SCAN_IMMEDIATELY = "DeviceScanActivity" +
+            ".RequestStartScanImmediately";
+    /**
+     * SCAN_PERIOD to specify how many milliseconds to scan. for example, =5000 is to Stops
+     * scanning after 5 seconds.
+     */
+    private static final long SCAN_PERIOD = 5000;
     private String TAG = "DeviceScanActivity";
     private LeDeviceListAdapter mLeDeviceListAdapter;
     ScanCallback mScanCallback = new ScanCallback() {
@@ -66,8 +55,15 @@ public class DeviceScanActivity extends ListActivity {
     };
     private BluetoothAdapter mBluetoothAdapter;
     private BluetoothLeScanner mBluetoothLeScanner;
+    /**
+     * boolean indicating weather the {@link BluetoothLeScanner} is scanning or not. scanning =
+     * true, not scanning = false.
+     */
     private boolean mScanning;
     private Handler mHandler;
+    /**
+     * Button that is used to control the start or stop scanning.
+     */
     private Button buttonScan;
 
     @Override
@@ -82,8 +78,12 @@ public class DeviceScanActivity extends ListActivity {
         buttonScan.setOnClickListener(new OnClickListener() {
 
             public void onClick(View arg0) {
-                mLeDeviceListAdapter.clear();
-                scanLeDevice(true);
+                if (mScanning)
+                    scanLeDevice(false);
+                else {
+                    mLeDeviceListAdapter.clear();
+                    scanLeDevice(true);
+                }
             }
         });
 
@@ -117,6 +117,11 @@ public class DeviceScanActivity extends ListActivity {
         // Initializes list view adapter.
         mLeDeviceListAdapter = new LeDeviceListAdapter();
         setListAdapter(mLeDeviceListAdapter);
+
+        if (getIntent().getBooleanExtra(REQUEST_START_SCAN_IMMEDIATELY, false)) {
+            mLeDeviceListAdapter.clear();
+            scanLeDevice(true);
+        }
     }
 
     @Override
@@ -132,8 +137,7 @@ public class DeviceScanActivity extends ListActivity {
         if (device == null) return;
 
         if (mScanning) {
-            mBluetoothLeScanner.stopScan(mScanCallback);
-            mScanning = false;
+            scanLeDevice(false);
         }
 
         final Intent intent = new Intent();
@@ -143,6 +147,9 @@ public class DeviceScanActivity extends ListActivity {
         finish();
     }
 
+    /**
+     * @param enable true to start scan and stop after scan period,
+     */
     private void scanLeDevice(final boolean enable) {
         if (enable) {
             // Stops scanning after a pre-defined scan period.
@@ -150,7 +157,6 @@ public class DeviceScanActivity extends ListActivity {
                 @Override
                 public void run() {
                     if (mScanning) {
-                        //10 sec
                         BleScan(false);
                     }
                 }
@@ -166,30 +172,52 @@ public class DeviceScanActivity extends ListActivity {
      */
     private void BleScan(boolean scan) {
         if (scan && !mScanning) {
-//            button_find_ble_lock.setText("Scaning");
+            buttonScan.setText("Scanning");
             mScanning = true;
             mBluetoothLeScanner.startScan(mScanCallback);
             Log.i(Constants.TAG_UnlockService, "Started LE scan");
         } else if (!scan && mScanning) {
-//            button_find_ble_lock.setText("Scan for locks");
+            buttonScan.setText("Scan");
             mScanning = false;
             mBluetoothLeScanner.stopScan(mScanCallback);
             Log.i(Constants.TAG_UnlockService, "Stopped LE scan");
         }
     }
 
+    /**
+     * this ViewHolder class holds two TextViews.
+     */
     static class ViewHolder {
         TextView deviceName;
         TextView deviceAddress;
     }
 
-    // Adapter for holding devices found through scanning.
+    /**
+     * Adapter for holding Bluetooth devices found through scanning.
+     */
     private class LeDeviceListAdapter extends BaseAdapter {
+        /**
+         * {@link ArrayList} of the Bluetooth devices (each item is by the type {@link
+         * BluetoothDevice}
+         */
         private ArrayList<BluetoothDevice> mLeDevices;
+        /**
+         * {@link ArrayList} of the received signal strength indicator of the Bluetooth devices.
+         */
         private ArrayList<Integer> rssis;
+        /**
+         * The records of each Bluetooth device. each record is a <code>array of bytes</code>.
+         */
         private ArrayList<byte[]> bRecord;
+        /**
+         * {@link LayoutInflater} that is used to inflate the Views needed by this adapter.
+         */
         private LayoutInflater mInflator;
 
+        /**
+         * Constructor that initializes the adapters arrayLists and initializes the {@link
+         * LayoutInflater}
+         */
         public LeDeviceListAdapter() {
             super();
             mLeDevices = new ArrayList<BluetoothDevice>();
@@ -198,6 +226,13 @@ public class DeviceScanActivity extends ListActivity {
             mInflator = DeviceScanActivity.this.getLayoutInflater();
         }
 
+        /**
+         * Adding a new device to the devices list in the adapter.
+         *
+         * @param device the new bluetooth device to be added.
+         * @param rs     the received signal strength indicator on the new Bluetooth device.
+         * @param record
+         */
         public void addDevice(BluetoothDevice device, int rs, byte[] record) {
             if (!mLeDevices.contains(device)) {
                 mLeDevices.add(device);
@@ -206,10 +241,18 @@ public class DeviceScanActivity extends ListActivity {
             }
         }
 
+        /**
+         * @param position position in which the user clicked.
+         * @return {@link BluetoothDevice} - the bluetooth device corresponding to the item the
+         * user clicked.
+         */
         public BluetoothDevice getDevice(int position) {
             return mLeDevices.get(position);
         }
 
+        /**
+         * Clear all the data in the adapter.
+         */
         public void clear() {
             mLeDevices.clear();
             rssis.clear();

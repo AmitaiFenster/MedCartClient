@@ -52,6 +52,8 @@ public class EnablingComponents {
      */
     public static boolean enableAllComponents(Activity activity, BluetoothAdapter
             mBluetoothAdapter) {
+        // TODO: 5/31/2016 Check if can romove the argument of the BluetoothAdapter and use
+        // BluetoothAdapter.getDefaultAdapter()
         return enableNFC(activity) && enableBluetooth(activity, mBluetoothAdapter) &&
                 enableLocation(activity);
     }

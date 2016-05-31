@@ -10,11 +10,33 @@ import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.widget.Toast;
 
+/**
+ * Use this activity to launch an unlocking action. This activity will start the UnlockService
+ * and this UnlockActivity will stop right away. this activity won't even be shown to the user.
+ * this activity is also launched after an NFC reading (as specified in the AndroidManifest.xml)
+ */
 public class UnlockActivity extends AppCompatActivity {
 
+    /**
+     * Extra data name to include when running {@link UnlockActivity} using NFC Tag UID. This is
+     * the name tag for the extra data - ID of the NFC Tag.
+     */
     public static final String EXTRA_NFC_ID = "com.amitai.medcart.medcartclient" +
             ".UnlockActivity.extra.nfcID";
-    private BluetoothAdapter mBluetoothAdapter;
+
+    /**
+     * Call this method to start the UnlockActivity (Starting the unlock process).
+     *
+     * @param activity activity that is calling this method (the Activity that is starting the
+     *                 UnlockActivity).
+     * @param nfcUID   UID of the NFC Tag corresponding to the lock that is wished to be opened.
+     */
+    public static void startUnlockActivity(Activity activity, String nfcUID) {
+        Intent intent = new Intent(Constants.ACTION_UNLOCK_USING_NFC);
+        intent.putExtra(UnlockActivity.EXTRA_NFC_ID, nfcUID);
+        intent.setClass(activity, UnlockActivity.class);
+        activity.startActivity(intent);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -22,7 +44,7 @@ public class UnlockActivity extends AppCompatActivity {
 
         final BluetoothManager bluetoothManager =
                 (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
-        mBluetoothAdapter = bluetoothManager.getAdapter();
+        BluetoothAdapter mBluetoothAdapter = bluetoothManager.getAdapter();
 
         // Checks if Bluetooth is supported on the device.
         if (mBluetoothAdapter == null) {
@@ -52,13 +74,6 @@ public class UnlockActivity extends AppCompatActivity {
         }
 
         finish();
-    }
-
-    public static void startUnlockActivity(Activity activity, String nfcUID) {
-        Intent intent = new Intent(Constants.ACTION_UNLOCK_USING_NFC);
-        intent.putExtra(UnlockActivity.EXTRA_NFC_ID, nfcUID);
-        intent.setClass(activity, UnlockActivity.class);
-        activity.startActivity(intent);
     }
 
 }

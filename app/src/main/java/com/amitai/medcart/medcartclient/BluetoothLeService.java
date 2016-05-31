@@ -1,19 +1,3 @@
-/*
- * Copyright (C) 2013 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package com.amitai.medcart.medcartclient;
 
 import android.app.Service;
@@ -40,41 +24,68 @@ import java.util.UUID;
  * given Bluetooth LE device.
  */
 public class BluetoothLeService extends Service {
+    /**
+     * Use this for Intent - when connected to gatt profile.
+     */
     public final static String ACTION_GATT_CONNECTED =
             "com.example.bluetooth.le.ACTION_GATT_CONNECTED";
+    /**
+     * Use this for Intent - when connected to gatt profile.
+     */
     public final static String ACTION_GATT_DISCONNECTED =
             "com.example.bluetooth.le.ACTION_GATT_DISCONNECTED";
+    /**
+     * Use this for Intent - when gatt service is discovered.
+     */
     public final static String ACTION_GATT_SERVICES_DISCOVERED =
             "com.example.bluetooth.le.ACTION_GATT_SERVICES_DISCOVERED";
+    /**
+     * Use this for Intent action - data is available.
+     */
     public final static String ACTION_DATA_AVAILABLE =
             "com.example.bluetooth.le.ACTION_DATA_AVAILABLE";
+    /**
+     * Use this for Intent - extra data.
+     */
     public final static String EXTRA_DATA =
             "com.example.bluetooth.le.EXTRA_DATA";
-    //
-    // UUID for the services and characteristics that are available in the BLE device.
-    //
+    /**
+     * UUID for the services and characteristics that are available in the BLE device. This UUID
+     * is for the NOTIFY characteristic.
+     */
     public final static UUID UUID_NOTIFY =
             UUID.fromString("0000ffe1-0000-1000-8000-00805f9b34fb");
+    /**
+     * UUID for the services and characteristics that are available in the BLE device. This UUID
+     * is for the SERVICE.
+     */
     public final static UUID UUID_SERVICE =
             UUID.fromString("0000ffe0-0000-1000-8000-00805f9b34fb");
+    /**
+     * TAG, use to set Log print and identify log print for this BluetoothLeService class.
+     */
     private final static String TAG = BluetoothLeService.class.getSimpleName();
     private final IBinder mBinder = new LocalBinder();
     public BluetoothGattCharacteristic mNotifyCharacteristic;
     private BluetoothManager mBluetoothManager;
     private BluetoothAdapter mBluetoothAdapter;
     private BluetoothGatt mBluetoothGatt;
-    // Implements callback methods for GATT events that the app cares about.  For example,
-    // connection change and services discovered.
+    /**
+     * Implements callback methods for GATT events that the app cares about.  For example,
+     * connection change and services discovered.
+     */
     private final BluetoothGattCallback mGattCallback = new BluetoothGattCallback() {
         @Override
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
             String intentAction;
             Log.i(TAG, "oldStatus=" + status + " NewStates=" + newState);
             if (status == BluetoothGatt.GATT_SUCCESS) {
-
                 if (newState == BluetoothProfile.STATE_CONNECTED) {
+                    /*
+                     * Once successfully connected, we must discover all the services on the
+                     * device before we can read and write their characteristics.
+                     */
                     intentAction = ACTION_GATT_CONNECTED;
-
                     broadcastUpdate(intentAction);
                     Log.i(TAG, "Connected to GATT server.");
                     // Attempts to discover services after successful connection.
@@ -87,6 +98,11 @@ public class BluetoothLeService extends Service {
                     Log.i(TAG, "Disconnected from GATT server.");
                     broadcastUpdate(intentAction);
                 }
+            } else {
+                /*
+                 * If there is a failure at any stage, simply disconnect.
+                 */
+                mBluetoothGatt.disconnect();
             }
         }
 
@@ -119,8 +135,7 @@ public class BluetoothLeService extends Service {
 
         @Override
         public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic
-                characteristic,
-                                          int status) {
+                characteristic, int status) {
             Log.e(TAG, "OnCharacteristicWrite");
         }
 
@@ -156,7 +171,6 @@ public class BluetoothLeService extends Service {
     }
 
     public void WriteBytes(byte[] byteData) {
-
         mNotifyCharacteristic.setValue(byteData);
         mBluetoothGatt.writeCharacteristic(mNotifyCharacteristic);
     }
@@ -186,11 +200,25 @@ public class BluetoothLeService extends Service {
         }
     }
 
+    /**
+     * Update the broadcast, which the class that is using this BluetoothLeService should
+     * implement a BroadcastReceiver. the broadcast is sent as an Intent according to the action.
+     *
+     * @param action The Intent that is broadcast is created with this action.
+     */
     private void broadcastUpdate(final String action) {
         final Intent intent = new Intent(action);
         sendBroadcast(intent);
     }
 
+    /**
+     * Update the broadcast, which the class that is using this BluetoothLeService should
+     * implement a BroadcastReceiver. the broadcast is sent as an Intent according to the action.
+     *
+     * @param action         The Intent that is broadcast is created with this action.
+     * @param characteristic if the characteristic has a value, so the value will be added to the
+     *                       Intent as Extra String data with the tag of {@link #EXTRA_DATA}.
+     */
     private void broadcastUpdate(final String action,
                                  final BluetoothGattCharacteristic characteristic) {
         final Intent intent = new Intent(action);
@@ -268,6 +296,10 @@ public class BluetoothLeService extends Service {
             mBluetoothGatt.close();
             mBluetoothGatt = null;
         }
+        /*
+         * Make a connection with the device using the special LE-specific connectGatt() method,
+         * passing in a callback for GATT events.
+         */
         mBluetoothGatt = device.connectGatt(this, false, mGattCallback);
         //mBluetoothGatt.connect();
 

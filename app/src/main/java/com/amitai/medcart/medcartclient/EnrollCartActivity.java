@@ -21,6 +21,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -31,26 +33,82 @@ import com.google.firebase.database.ValueEventListener;
 import java.util.HashMap;
 import java.util.Map;
 
+// TODO: 5/31/2016 add option to check if user has permission in this activity, instead of
+// requiring a check for permission before activity is launched.
+
+/**
+ * This activity is used to Enroll a new cart. before launching this EnrollCartActivity make sure
+ * that the user has permission enrollCart (admin user).
+ */
 public class EnrollCartActivity extends AppCompatActivity {
 
+    /**
+     * This {@link FloatingActionButton} will trigger the upload to Firebase (EnrollCart).
+     */
     FloatingActionButton fab;
+    /**
+     * TextView for the device name that was found after scanning.
+     */
     TextView viewDeviceName;
+    /**
+     * TextView for the device address that was found after scanning.
+     */
     TextView viewDeviceAddress;
+    /**
+     * TextView for the guide of the EditText field {@link #mPasswordView} (enter password field).
+     */
     private TextView textview_guide_password;
+    /**
+     * TextView for the guide of the EditText field {@link #mRelayNumView} (enter relay number
+     * field).
+     */
     private TextView textview_guide_relayNum;
+    /**
+     * TextView for the guide of the EditText field {@link #mDescriptionView} (enter
+     * description field).
+     */
     private TextView textview_guide_description;
+    /**
+     * TextView to show the uid of the NFC sticker that was scanned.
+     */
     private TextView textview_NFC_UID;
+    /**
+     * Button that when pressed will open the {@link DeviceScanActivity} in order to scan for
+     * Bluetooth LE devices.
+     */
     private Button button_find_ble_lock;
+    /**
+     * EditText in which the user enters the password of the Bluetooth LE device.
+     */
     private EditText mPasswordView;
+    /**
+     * EditText in which the user enters the relay number of the lock.
+     */
     private EditText mRelayNumView;
+    /**
+     * EditText in which the user enters the description of the lock.
+     */
     private EditText mDescriptionView;
+    /**
+     * Boolean indicating the uploading status. true if the information is currently being
+     * uploaded to the Firebase database, and false otherwise.
+     */
     private boolean uploading;
+    // TODO: 5/31/2016 switch to use the BluetoothDeviceHolder instead of seprate String fields,
+    // like bleAddress and nfcAddress.
+    /**
+     * String for saving the Bluetooth LE device address that was found and chosen.
+     */
     private String bleAddress;
+    /**
+     * String for saving the scanned NFC Tags address.
+     */
     private String nfcAddress;
 
     /**
      * @param string String to be converted to integer.
-     * @return the integer that was converted from the String string.
+     * @return the integer that was converted from the String. if String cannot be converted to
+     * integer, -1 will be returned.
      */
     public static int toInteger(String string) {
         int i;
@@ -88,15 +146,35 @@ public class EnrollCartActivity extends AppCompatActivity {
         mapAuthorized.put(LoginHandler.getAuthUid(), "true");
         map.put("authorized", mapAuthorized);
 
-        firebaseRelaysRef.setValue(map);
+        firebaseRelaysRef.setValue(map).addOnCompleteListener(new OnCompleteListener<Void>() {
+            @Override
+            public void onComplete(Task<Void> task) {
+                Log.d(Constants.TAG_EnrollCartActivity, "onComplete");
+            }
+        }).addOnFailureListener(new OnFailureListener() {
+            @Override
+            public void onFailure(Exception e) {
+                Log.d(Constants.TAG_EnrollCartActivity, "onFailure");
+                Toast.makeText(EnrollCartActivity.this, "Operation fail", Toast
+                        .LENGTH_SHORT).show();
+            }
+        }).addOnSuccessListener(new OnSuccessListener<Void>() {
+            @Override
+            public void onSuccess(Void aVoid) {
+                Toast.makeText(EnrollCartActivity.this, "Lock added successfully", Toast
+                        .LENGTH_SHORT).show();
+                Log.d(Constants.TAG_EnrollCartActivity, "onSuccess");
+            }
+        });
 
         DatabaseReference firebaseUserRef = database.getReferenceFromUrl(Constants.FIREBASE_URL
                 + "users/" + LoginHandler.getAuthUid() + "/authorized/" + deviceHolder
                 .getNfcAddress());
         firebaseUserRef.setValue("true");
 
-        Toast.makeText(EnrollCartActivity.this, "Lock added successfully", Toast.LENGTH_SHORT)
-                .show();
+        // TODO: 5/30/2016 Add a check if lock was really added successfully by checking firebase.
+//        Toast.makeText(EnrollCartActivity.this, "Lock added successfully", Toast.LENGTH_SHORT)
+//                .show();
         finish();
     }
 
@@ -137,6 +215,7 @@ public class EnrollCartActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 Intent intent = new Intent(EnrollCartActivity.this, DeviceScanActivity.class);
+                intent.putExtra(DeviceScanActivity.REQUEST_START_SCAN_IMMEDIATELY, true);
                 startActivityForResult(intent, Constants.REQUEST_BLUETOOTH_DEVICE_DATA);
             }
         });
@@ -145,6 +224,7 @@ public class EnrollCartActivity extends AppCompatActivity {
         mDescriptionView = (EditText) findViewById(R.id.editTextDescription);
         mPasswordView = (EditText) findViewById(R.id.editTextPassword);
         mRelayNumView = (EditText) findViewById(R.id.editTextRelayNum);
+        fab.setVisibility(View.GONE);
         viewDeviceAddress.setVisibility(View.GONE);
         viewDeviceName.setVisibility(View.GONE);
         mDescriptionView.setVisibility(View.GONE);
@@ -157,6 +237,7 @@ public class EnrollCartActivity extends AppCompatActivity {
      * enter the device information (usually after the NFC and Bluetooth device were found).
      */
     private void makeViewsVisible() {
+        fab.setVisibility(View.VISIBLE);
         viewDeviceAddress.setVisibility(View.VISIBLE);
         viewDeviceName.setVisibility(View.VISIBLE);
         mDescriptionView.setVisibility(View.VISIBLE);
@@ -192,9 +273,7 @@ public class EnrollCartActivity extends AppCompatActivity {
         super.onResume();
         NfcAdapter nfcAdapter = NfcAdapter.getDefaultAdapter(this);
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, new Intent
-                (this,
-                        getClass()
-                ).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), 0);
+                (this, getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), 0);
 
         // to catch all NFC discovery events:
         nfcAdapter.enableForegroundDispatch(this, pendingIntent, null, null);
@@ -202,6 +281,7 @@ public class EnrollCartActivity extends AppCompatActivity {
 
     }
 
+    @Override
     public void onNewIntent(Intent intent) {
         if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(intent.getAction()) ||
                 NfcAdapter.ACTION_TECH_DISCOVERED.equals(intent.getAction()) ||
@@ -310,7 +390,7 @@ public class EnrollCartActivity extends AppCompatActivity {
 
     /**
      * Is the password is valid.
-     * <p>
+     * <p/>
      * A valid password is a password that is longer than 4 characters.
      *
      * @param password password to be checked.
@@ -324,7 +404,7 @@ public class EnrollCartActivity extends AppCompatActivity {
      * Upload all the device properties that was entered in this EnrollCartActivity to Firebase.
      * This method checks if all af the information (the components) is valid. If not, an error
      * will be displayed to the user and the upload will cancel.
-     * <p>
+     * <p/>
      * The components: relayNumber, password, description, bleAddress, nfcAddress.
      */
     public void upload() {

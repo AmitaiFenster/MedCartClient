@@ -1,5 +1,6 @@
 package com.amitai.medcart.medcartclient;
 
+import android.app.ActionBar;
 import android.app.Fragment;
 import android.app.FragmentTransaction;
 import android.bluetooth.BluetoothAdapter;
@@ -30,16 +31,41 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
 // TODO: 5/5/2016 If possible, have a different class implement OnLoginListener.
+
+/**
+ * This is the MainActivity of the application. it handles the menus, starting fragments and more
+ * wide app operations (like turning on device components).
+ */
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener, MainFragment
         .OnFragmentInteractionListener {
 
     //    public FloatingActionButton fab;
+    /**
+     * View of the switch that is placed in the toolbar and used for enabling all the
+     * device components needed for the application.
+     */
     View viewSwitchLayout;
+    /**
+     * View of the navigation menu.
+     */
     NavigationView navigationView;
+    /**
+     * LoginHandler used to handle all operation regarding user authentication.
+     */
     LoginHandler login;
+    /**
+     * {@link BluetoothAdapter} used to perform fundamental Bluetooth tasks.
+     */
     private BluetoothAdapter mBluetoothAdapter;
+    /**
+     * The Switch object that is placed in the toolbar and used for enabling all the
+     * device components needed for the application.
+     */
     private Switch toolbarSwitch;
+    /**
+     * MenuItem object of the previous menu item that was selected from the {@link #navigationView}.
+     */
     private MenuItem mPreviousMenuItem;
 
     @Override
@@ -85,6 +111,24 @@ public class MainActivity extends AppCompatActivity
         navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
 //        navigationView.getMenu().setGroupCheckable();
+
+        ActionBar.TabListener tabListener = new ActionBar.TabListener() {
+            @Override
+            public void onTabSelected(ActionBar.Tab tab, FragmentTransaction ft) {
+
+            }
+
+            @Override
+            public void onTabUnselected(ActionBar.Tab tab, FragmentTransaction ft) {
+
+            }
+
+            @Override
+            public void onTabReselected(ActionBar.Tab tab, FragmentTransaction ft) {
+
+            }
+        };
+
 
         components();
 

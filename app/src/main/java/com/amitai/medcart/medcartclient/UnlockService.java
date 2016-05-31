@@ -34,9 +34,10 @@ import java.util.TimerTask;
  */
 public class UnlockService extends Service {
 
-
-    // Stops scanning after 5 seconds.
-    private static final long SCAN_PERIOD = 5000;
+    /**
+     * Constant for the length (lime) of the scan. Stops scanning after 2.5 seconds.
+     */
+    private static final long SCAN_PERIOD = 2500;
     //    private static final String DEVICE_NAME = "ZL-RC02D";
     BluetoothDevice mDevice;
     private BluetoothDeviceHolder bluetoothDeviceHolder;
@@ -44,22 +45,52 @@ public class UnlockService extends Service {
     private BluetoothManager bluetoothManager;
     private BluetoothAdapter mBluetoothAdapter;
     private BluetoothLeScanner mBluetoothLeScanner;
-    private TimerTask task2;
+    /**
+     * The combination af the {@link #taskConnect} task, {@link #taskSwitchRelay} (open relay
+     * task) and {@link #taskCloseRelay} task.
+     */
+    private TimerTask taskCombined;
     private Timer timer2;
-    private TimerTask task1;
+    /**
+     * Task for connecting to device (action handled by the {@link Handler}).
+     */
+    private TimerTask taskConnect;
     private Timer timer1;
-    private TimerTask task3;
+    /**
+     * Task for switching the relay (opening the relay) after device is connected (action handled
+     * by the {@link Handler}).
+     */
+    private TimerTask taskSwitchRelay;
     private Timer timer3;
     //Close the relay after opened
-    private TimerTask task4;
+    /**
+     * Task for switching the relay (closing the relay) after it was opened (action handled by the
+     * {@link Handler}).
+     */
+    private TimerTask taskCloseRelay;
     private Timer timer4;
-    //Run stopSelf() to end service.
+    /**
+     * Task for running the {@link #stopSelf()} method in order to end the service.
+     */
     private TimerTask task5;
     private Timer timer5;
-    private int relay1StateFlag = 0;
-    private int relay2StateFlag = 0;
-    private boolean mConnected = false; //Is GATT established.
-    private boolean isBTConnected = false;  //Is Bluetooth connected.
+    /**
+     * Indicating the state of relay 1. true if it is opened, and false if it is currently closed.
+     */
+    private boolean relay1StateFlag = false;
+    /**
+     * Indicating the state of relay 2. true if it is opened, and false if it is currently closed.
+     */
+    private boolean relay2StateFlag = false;
+    /**
+     * Indicating the state of the Bluetooth GATT connection. true if GATT is established with
+     * service and false otherwise.
+     */
+    private boolean isBTConnected = false;
+    /**
+     * this {@link BroadcastReceiver} receives broadcast updates from the {@link
+     * BluetoothLeService} about changes in the GATT connection.
+     */
     private final BroadcastReceiver mGattUpdateReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -68,11 +99,10 @@ public class UnlockService extends Service {
                 Log.e(Constants.TAG_UnlockService, "Only gatt, just wait");
             } else if (BluetoothLeService.ACTION_GATT_DISCONNECTED
                     .equals(action)) {
-                mConnected = false;
+                isBTConnected = false;
 
             } else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED
                     .equals(action)) {
-                mConnected = true;
                 isBTConnected = true;
 
                 Log.e(Constants.TAG_UnlockService, "In what we need");
@@ -86,10 +116,17 @@ public class UnlockService extends Service {
             }
         }
     };
+//    /**
+//     * Address of device that what specified by the constructor to connect.
+//     */
     /**
-     * Address of device that what specified by the constructor to connect.
+     * Service to handle connection with the Bluetooth LE device
      */
     private BluetoothLeService mBluetoothLeService;
+    /**
+     * implementation of {@link ServiceConnection} with callbacks implementation for starting the
+     * {@link BluetoothLeService}.
+     */
     private final ServiceConnection mServiceConnection = new ServiceConnection() {
 
         @Override
@@ -110,7 +147,15 @@ public class UnlockService extends Service {
             mBluetoothLeService = null;
         }
     };
+    /**
+     * Boolean indication the scanning state. if the device is currently scanning for Bluetooth
+     * LE devices, mScanning will be true. False if the device is not scanning for Bluetooth LE
+     * devices.
+     */
     private boolean mScanning;
+    /**
+     * {@link ScanCallback} that is called when a new device was found or is the scanning failed.
+     */
     ScanCallback mScanCallback = new ScanCallback() {
         @Override
         public void onScanResult(int callbackType, ScanResult result) {
@@ -131,6 +176,10 @@ public class UnlockService extends Service {
             Log.i(Constants.TAG_UnlockService, "Scan Faild!!");
         }
     };
+
+    /**
+     * used to handle the Stop scanning after a pre-defined scan period.
+     */
     private Handler mHandler = new Handler();
 
 
@@ -199,7 +248,7 @@ public class UnlockService extends Service {
             }
         };
         timer5 = new Timer();
-        timer5.schedule(task5, 16000);
+        timer5.schedule(task5, 14000);
 
         if (intent != null) {
             bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
@@ -419,8 +468,18 @@ public class UnlockService extends Service {
             return;
         }
 
+        /**
+         * handling action regarding the Bluetooth device (operations: connecting to the Bluetooth
+         * device, sending switch commands to the relay.
+         */
         final Handler handler = new Handler() {
+            // TODO: 5/31/2016 Fix the Handler leakage problem.
+
+            /**
+             * @param msg
+             */
             public void handleMessage(Message msg) {
+                // TODO: 5/31/2016 Optimize, make simpler and go over this handleMessage method.
                 switch (msg.what) {
 
                     case 1:
@@ -457,7 +516,7 @@ public class UnlockService extends Service {
             }
         };
 
-        task1 = new TimerTask() {
+        taskConnect = new TimerTask() {
             @Override
             public void run() {
                 Message message = new Message();
@@ -466,7 +525,7 @@ public class UnlockService extends Service {
             }
         };
 
-        task3 = new TimerTask() {
+        taskSwitchRelay = new TimerTask() {
             @Override
             public void run() {
                 Message message = new Message();
@@ -476,7 +535,7 @@ public class UnlockService extends Service {
         };
 
         //Close the relay after opened
-        task4 = new TimerTask() {
+        taskCloseRelay = new TimerTask() {
             @Override
             public void run() {
                 Message message = new Message();
@@ -485,7 +544,8 @@ public class UnlockService extends Service {
             }
         };
 
-        task2 = new TimerTask() {
+
+        taskCombined = new TimerTask() {
             @Override
             public void run() {
                 if (isBTConnected) {
@@ -493,14 +553,14 @@ public class UnlockService extends Service {
                     message.what = 1;
                     handler.sendMessage(message);
                     timer4 = new Timer();
-                    timer4.schedule(task4, 2000);
+                    timer4.schedule(taskCloseRelay, 2000);
                 } else {
                     timer1 = new Timer();
-                    timer1.schedule(task1, 1000);
+                    timer1.schedule(taskConnect, 1000);
                     timer3 = new Timer();
-                    timer3.schedule(task3, 2000);
+                    timer3.schedule(taskSwitchRelay, 2000);
                     timer4 = new Timer();
-                    timer4.schedule(task4, 4000);
+                    timer4.schedule(taskCloseRelay, 4000);
                 }
                 new Timer().schedule(new TimerTask() {
                     @Override
@@ -511,7 +571,7 @@ public class UnlockService extends Service {
             }
         };
         timer2 = new Timer();
-        timer2.schedule(task2, 800);
+        timer2.schedule(taskCombined, 800);
 
 //        unregisterReceiver(mGattUpdateReceiver);
 //        getApplicationContext().unbindService(mServiceConnection);
@@ -537,32 +597,33 @@ public class UnlockService extends Service {
                     Toast.LENGTH_SHORT).show();
         } else {
 
+            // TODO: 5/31/2016 Have the code work for endless relays, and not only 2.
             byte[] data;
             if (bluetoothDeviceHolder.getRelayNum() == 1) {
-                if (relay1StateFlag == 0) {
+                if (!relay1StateFlag) {
                     //relay 1 open
                     data = WritingDataFormat.getDataRelay1Open(bluetoothDeviceHolder.getPassword());
                     mBluetoothLeService.WriteBytes(data);
-                    relay1StateFlag = 1;
+                    relay1StateFlag = true;
                 } else {
                     //relay 1 close
                     data = WritingDataFormat.getDataRelay1Close(bluetoothDeviceHolder.getPassword
                             ());
                     mBluetoothLeService.WriteBytes(data);
-                    relay1StateFlag = 0;
+                    relay1StateFlag = false;
                 }
             } else if (bluetoothDeviceHolder.getRelayNum() == 2) {
-                if (relay2StateFlag == 0) {
+                if (!relay2StateFlag) {
                     //relay 2 open
                     data = WritingDataFormat.getDataRelay2Open(bluetoothDeviceHolder.getPassword());
                     mBluetoothLeService.WriteBytes(data);
-                    relay2StateFlag = 1;
+                    relay2StateFlag = true;
                 } else {
                     //relay 2 close
                     data = WritingDataFormat.getDataRelay2Close(bluetoothDeviceHolder.getPassword
                             ());
                     mBluetoothLeService.WriteBytes(data);
-                    relay2StateFlag = 0;
+                    relay2StateFlag = false;
                 }
             }
         }

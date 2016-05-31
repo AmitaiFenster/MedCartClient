@@ -98,9 +98,11 @@ public class MainFragment extends Fragment {
                 relayRef.addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(DataSnapshot dataSnapshot) {
-                        authArrayList.add(dataSnapshot.getValue(String.class));
-                        nfcArrayList.add(key);
-                        adapter.notifyDataSetChanged();
+                        if (dataSnapshot.exists()) {
+                            authArrayList.add(dataSnapshot.getValue(String.class));
+                            nfcArrayList.add(key);
+                            adapter.notifyDataSetChanged();
+                        }
                     }
 
                     @Override
@@ -193,7 +195,7 @@ public class MainFragment extends Fragment {
      * fragment to allow an interaction in this fragment to be communicated
      * to the activity and potentially other fragments contained in that
      * activity.
-     * <p>
+     * <p/>
      * See the Android Training lesson <a href=
      * "http://developer.android.com/training/basics/fragments/communicating.html"
      * >Communicating with Other Fragments</a> for more information.
