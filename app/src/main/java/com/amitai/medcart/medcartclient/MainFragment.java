@@ -28,19 +28,40 @@ import java.util.ArrayList;
  * to handle interaction events.
  * Use the {@link MainFragment#newInstance} factory method to
  * create an instance of this fragment.
+ * This Fragment {@link Fragment} shows the list of devices the user is authorized to control,
+ * and if the user clicks on a device from the list the device lock will open.
  */
 public class MainFragment extends Fragment {
 
+    /**
+     * ListView to show the list of devices the user is authorized to control.
+     */
     ListView myList;
+    /**
+     * ArrayList for holding the list of the descriptions (names) of devices the user is authorized
+     * to control.
+     */
     ArrayList<String> authArrayList = new ArrayList<>();
+    /**
+     * ArrayList for holding the list of the NFC UID of devices the user is authorized
+     * to control.
+     */
     ArrayList<String> nfcArrayList = new ArrayList<>();
+    /**
+     * ArrayAdapter for handling the interaction between the ListView and the ArrayList of
+     * devices the user is authorized to control.
+     */
     ArrayAdapter<String> adapter;
+    /**
+     * The root {@link View} of this fragment.
+     */
     View rootView;
-    //ListView explanation: http://stackoverflow.com/a/7917516/4038549
+    // TODO: 5/31/2016 Check if repoUrl can be removed.
     String repoUrl;
+    /**
+     * Listener for listening for interaction with the {@link android.app.Activity Activity}.
+     */
     private OnFragmentInteractionListener mListener;
-//    private TextView mainText;
-
 
     public MainFragment() {
         // Required empty public constructor

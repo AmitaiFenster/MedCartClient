@@ -145,6 +145,7 @@ public class UnlockService extends Service {
         @Override
         public void onServiceDisconnected(ComponentName componentName) {
             mBluetoothLeService = null;
+            isBTConnected = false;
         }
     };
     /**
@@ -279,6 +280,7 @@ public class UnlockService extends Service {
         if (mBluetoothLeService != null) {
             mBluetoothLeService.close();
             mBluetoothLeService = null;
+            isBTConnected = false;
         }
         super.onDestroy();
     }
@@ -302,10 +304,13 @@ public class UnlockService extends Service {
                             (int) ((double) dataSnapshot.child("BLERelayNum").getValue
                                     (Double.class)), dataSnapshot.child("password")
                                     .getValue(String.class));
-                    DatabaseReference firebaseActivityRef = FirebaseDatabase.getInstance()
-                            .getReferenceFromUrl(Constants.FIREBASE_URL + "activity/" + NFC_UID +
-                                    "//" + Constants.getDateTimeString().replaceAll("\\.", "-"));
-                    firebaseActivityRef.setValue(LoginHandler.getAuthUid());
+                    // TODO: 6/6/2016 W/RepoOperation: setValue at
+                    // /activity/04:C4:01:02:39:37:84/Jun 6, 2016 18:48:36 failed: DatabaseError:
+                    // Permission denied
+//                    DatabaseReference firebaseActivityRef = FirebaseDatabase.getInstance()
+//                            .getReferenceFromUrl(Constants.FIREBASE_URL + "activity/" + NFC_UID +
+//                                    "//" + Constants.getDateTimeString().replaceAll("\\.", "-"));
+//                    firebaseActivityRef.setValue(LoginHandler.getAuthUid());
                 } else
                     notAuthorized();
             }
@@ -444,7 +449,7 @@ public class UnlockService extends Service {
      */
     public void connectBluetoothDevice() {
 
-        if (mDevice == null) return;
+        if (mDevice == null || mBluetoothLeService == null) return;
 
         Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
         Log.d(Constants.TAG_UnlockService, "Try to bindService=" + this.bindService
@@ -556,9 +561,9 @@ public class UnlockService extends Service {
                     timer4.schedule(taskCloseRelay, 2000);
                 } else {
                     timer1 = new Timer();
-                    timer1.schedule(taskConnect, 1000);
+                    timer1.schedule(taskConnect, 400);
                     timer3 = new Timer();
-                    timer3.schedule(taskSwitchRelay, 2000);
+                    timer3.schedule(taskSwitchRelay, 1500);
                     timer4 = new Timer();
                     timer4.schedule(taskCloseRelay, 4000);
                 }
@@ -571,7 +576,7 @@ public class UnlockService extends Service {
             }
         };
         timer2 = new Timer();
-        timer2.schedule(taskCombined, 800);
+        timer2.schedule(taskCombined, 200);
 
 //        unregisterReceiver(mGattUpdateReceiver);
 //        getApplicationContext().unbindService(mServiceConnection);

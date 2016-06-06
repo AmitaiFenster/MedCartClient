@@ -27,15 +27,35 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Created by amita on 5/5/2016.
+ * Handles all log in / sign in / sign up operations. Use this class to get info and handle
+ * operations on the authentication.
  */
 public class LoginHandler {
 
+    // TODO: 5/31/2016 Check possibility for LoginHandler to be a Static class.
+    /**
+     * Use this Tag as a request code to create a sign in activity provided by FirebaseUI.
+     */
     private static final int RC_SIGN_IN = 100;
+    // TODO: 5/31/2016 check if the Activity reference needs to be the MainActivity or it could be
+    // any Activity.
+    /**
+     * Reference to the {@link MainActivity} which is calling the LoginHandler.
+     */
     MainActivity activity;
     private FirebaseAuth mAuth;
+    /**
+     * Listener that gets notified when an authentication state change occurred.
+     */
     private FirebaseAuth.AuthStateListener mAuthListener;
 
+    /**
+     * Constructor that throws an exception when a non MainActivity is trying to create an
+     * instance of the LoginHandler. this constructor also starts the {@link FirebaseAuth
+     * .AuthStateListener}
+     *
+     * @param activity
+     */
     public LoginHandler(Activity activity) {
         try {
             this.activity = (MainActivity) activity;
@@ -144,10 +164,9 @@ public class LoginHandler {
                         .createSignInIntentBuilder()
                         .setProviders(
                                 AuthUI.EMAIL_PROVIDER,
-                                AuthUI.GOOGLE_PROVIDER
-                                /*AuthUI.FACEBOOK_PROVIDER*/)
-                        .build(),
-                RC_SIGN_IN);
+                                AuthUI.GOOGLE_PROVIDER,
+                                AuthUI.FACEBOOK_PROVIDER)
+                        .build(), RC_SIGN_IN);
     }
 
     /**
