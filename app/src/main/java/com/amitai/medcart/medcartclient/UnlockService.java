@@ -242,14 +242,14 @@ public class UnlockService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
 
         //Run stopSelf() to end service.
-        task5 = new TimerTask() {
-            @Override
-            public void run() {
-                stopSelf();
-            }
-        };
-        timer5 = new Timer();
-        timer5.schedule(task5, 14000);
+//        task5 = new TimerTask() {
+//            @Override
+//            public void run() {
+//                stopSelf();
+//            }
+//        };
+//        timer5 = new Timer();
+//        timer5.schedule(task5, 14000);
 
         if (intent != null) {
             bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
@@ -520,6 +520,8 @@ public class UnlockService extends Service {
                 super.handleMessage(msg);
             }
         };
+
+        // TODO: 6/9/2016 Check if handler and timing needed. compare with BTTrs app.
 
         taskConnect = new TimerTask() {
             @Override

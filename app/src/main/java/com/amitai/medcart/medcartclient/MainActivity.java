@@ -31,6 +31,10 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
 // TODO: 5/5/2016 If possible, have a different class implement OnLoginListener.
+// TODO: 6/9/2016 Use Bluetooth BroadcastReceiver and update switch accordingly. remove switch
+// update elsewhere. http://stackoverflow
+// .com/questions/33260292/on-android-can-i-register-for-a-callback-that-tells-me-if-bluetooth-is
+// -turned-o
 
 /**
  * This is the MainActivity of the application. it handles the menus, starting fragments and more

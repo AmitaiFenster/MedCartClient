@@ -277,8 +277,6 @@ public class EnrollCartActivity extends AppCompatActivity {
 
         // to catch all NFC discovery events:
         nfcAdapter.enableForegroundDispatch(this, pendingIntent, null, null);
-
-
     }
 
     @Override
